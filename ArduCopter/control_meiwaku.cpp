@@ -16,6 +16,9 @@ bool Copter::meiwaku_init(bool ignore_checks)
     // set target altitude to zero for reporting
     pos_control.set_alt_target(0);
 
+    meiwaku_timer = millis();
+    meiwaku_count = 0;
+
     return true;
 }
 
@@ -41,22 +44,49 @@ void Copter::meiwaku_run()
 
     // convert pilot input to lean angles
     /* Meiwaku Mode Core : input changes in every 10 seconds */
-    int16_t pilot_input[4] = {0}; /*input 1=roll 2=pitch 3=yawrate 4=throttle*/
+    int16_t pilot_input[3] = {0}; /*input 1=roll 2=pitch 3=yawrate 4=throttle*/
 
-    int16_t roll_input = channel_roll->get_control_in();
-    int16_t pitch_input = channel_pitch->get_control_in();
-    int16_t yawrate_input = channel_yaw->get_control_in();
-    int16_t throttle_input = channel_throttle->get_control_in();
+    meiwaku_timer = millis();
+    uint32_t time_now = millis();
 
+    /* タイマーが10秒以上の時 */
+    if( time_now - meiwaku_timer > 100000){
+        
+        for(uint8_t i=0; i>3; i++){
+            uint8_t channel = 0;
+            channel = meiwaku_count+i;
+            switch(channel){
+            case 0:
+                pilot_input[channel] = channel_roll->get_control_in();
+                break;
+            case 1:
+                pilot_input[channel] = channel_pitch->get_control_in();
+            	break;
+            case 2:
+                pilot_input[channel] = channel_yaw->get_control_in();
+            	break;
+            case 3:
+                pilot_input[channel] = channel_throttle->get_control_in();
+            	break;
+            }
+            pilot_input[channel] = 
+        }
+    	if(meiwaku_count < 4){
+    	    meiwaku_count++;
+    	}else{
+    		meiwaku_count = 0;
+    	}
+        meiwaku_timer = millis();
+    }
 
     // To-Do: convert get_pilot_desired_lean_angles to return angles as floats
-    get_pilot_desired_lean_angles(channel_roll->get_control_in(), channel_pitch->get_control_in(), target_roll, target_pitch, aparm.angle_max);
+    get_pilot_desired_lean_angles(pilot_input[0], pilot_input[1], target_roll, target_pitch, aparm.angle_max);
 
     // get pilot's desired yaw rate
-    target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
+    target_yaw_rate = get_pilot_desired_yaw_rate(pilot_input[2]);
 
     // get pilot's desired throttle
-    pilot_throttle_scaled = get_pilot_desired_throttle(channel_throttle->get_control_in());
+    pilot_throttle_scaled = get_pilot_desired_throttle(pilot_input[3]);
 
     // call attitude controller
     attitude_control.input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate, get_smoothing_gain());
