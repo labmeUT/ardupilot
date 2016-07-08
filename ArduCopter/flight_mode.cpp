@@ -228,6 +228,10 @@ void Copter::update_flight_mode()
             throw_run();
             break;
 
+        case MEIWAKU:
+            meiwaku_run();
+            break;
+
         default:
             break;
     }
