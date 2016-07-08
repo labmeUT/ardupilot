@@ -51,51 +51,34 @@ void Copter::meiwaku_run()
     uint32_t time_now = millis();
 
     /* タイマーが10秒以上の時 */
-    if( time_now - meiwaku_timer > 100000){
-        
-        for(uint8_t i=0; i>3; i++){
-            uint8_t channel = 0;
-            channel = meiwaku_count+i;
-            if(channel>3){
-                channel = channel - 4;
-            }
-            switch(channel){
-            case 0:
-                pilot_input[channel] = channel_roll->get_control_in();
-                break;
-            case 1:
-                pilot_input[channel] = channel_pitch->get_control_in();
-            	break;
-            case 2:
-                pilot_input[channel] = channel_yaw->get_control_in();
-            	break;
-            case 3:
-                pilot_input[channel] = channel_throttle->get_control_in();
-            	break;
-            }
-        }
-        if(meiwaku_count < 4){
-            meiwaku_count++;
-        }else{
+    if( time_now - meiwaku_timer > 10000){
+        cliSerial->printf("Meiwaku 10 Sec\n");
+        meiwaku_count++;
+        if(meiwaku_count > 3){
             meiwaku_count = 0;
         }
         meiwaku_timer = millis();
-    }else{
-        for(uint8_t i=0; i>3; i++){
-            switch(i){
-            case 0:
-                pilot_input[i] = channel_roll->get_control_in();
-                break;
-            case 1:
-                pilot_input[i] = channel_pitch->get_control_in();
-            	break;
-            case 2:
-                pilot_input[i] = channel_yaw->get_control_in();
-            	break;
-            case 3:
-                pilot_input[i] = channel_throttle->get_control_in();
-            	break;
-            }
+    }
+	
+    for(uint8_t i=0; i<4; i++){
+        uint8_t channel = 0;
+        channel = meiwaku_count+i;
+        if(channel>3){
+            channel = channel - 4;
+        }
+        switch(i){
+        case 0:
+            pilot_input[channel] = channel_roll->get_control_in();
+            break;
+        case 1:
+            pilot_input[channel] = channel_pitch->get_control_in();
+        	break;
+        case 2:
+            pilot_input[channel] = channel_yaw->get_control_in();
+        	break;
+        case 3:
+            pilot_input[channel] = channel_throttle->get_control_in();
+        	break;
         }
     }
 
