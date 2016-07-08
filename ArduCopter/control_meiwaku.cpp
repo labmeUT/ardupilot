@@ -44,6 +44,7 @@ void Copter::meiwaku_run()
 
     // convert pilot input to lean angles
     /* Meiwaku Mode Core : input changes in every 10 seconds */
+	::printf("meiwakuda\n");
     int16_t pilot_input[4] = {0}; /*input 1=roll 2=pitch 3=yawrate 4=throttle*/
 
     meiwaku_timer = millis();
@@ -55,6 +56,9 @@ void Copter::meiwaku_run()
         for(uint8_t i=0; i>3; i++){
             uint8_t channel = 0;
             channel = meiwaku_count+i;
+            if(channel>3){
+                channel = channel - 4;
+            }
             switch(channel){
             case 0:
                 pilot_input[channel] = channel_roll->get_control_in();
