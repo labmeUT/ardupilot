@@ -346,6 +346,10 @@ private:
     // Guided
     GuidedMode guided_mode;  // controls which controller is run (pos or vel)
 
+    // Meiwaku
+    uint32_t meiwaku_timer;
+    uint8_t meiwaku_count;
+    
     // RTL
     RTLState rtl_state;  // records state of rtl (initial climb, returning home, etc)
     bool rtl_state_complete; // set to true if the current state is completed
@@ -847,6 +851,8 @@ private:
     void sport_run();
     bool stabilize_init(bool ignore_checks);
     void stabilize_run();
+    bool meiwaku_init(bool ignore_checks);
+    void meiwaku_run();
     void crash_check();
     void parachute_check();
     void parachute_release();
