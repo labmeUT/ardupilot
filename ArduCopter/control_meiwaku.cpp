@@ -44,27 +44,24 @@ void Copter::meiwaku_run()
 
     // convert pilot input to lean angles
     /* Meiwaku Mode Core : input changes in every 10 seconds */
-	::printf("meiwakuda\n");
     int16_t pilot_input[4] = {}; /*input 1=roll 2=pitch 3=yawrate 4=throttle*/
 
-    meiwaku_timer = millis();
     uint32_t time_now = millis();
 
     /* タイマーが10秒以上の時 */
     if( time_now - meiwaku_timer > 10000){
-        cliSerial->printf("Meiwaku 10 Sec\n");
         meiwaku_count++;
-        if(meiwaku_count > 3){
+        if(meiwaku_count > 2){
             meiwaku_count = 0;
         }
         meiwaku_timer = millis();
     }
 	
-    for(uint8_t i=0; i<4; i++){
+    for(uint8_t i=0; i<3; i++){
         uint8_t channel = 0;
         channel = meiwaku_count+i;
-        if(channel>3){
-            channel = channel - 4;
+        if(channel>2){
+            channel = channel - 3;
         }
         switch(i){
         case 0:
@@ -76,9 +73,7 @@ void Copter::meiwaku_run()
         case 2:
             pilot_input[channel] = channel_yaw->get_control_in();
         	break;
-        case 3:
-            pilot_input[channel] = channel_throttle->get_control_in();
-        	break;
+
         }
     }
 
@@ -89,7 +84,7 @@ void Copter::meiwaku_run()
     target_yaw_rate = get_pilot_desired_yaw_rate(pilot_input[2]);
 
     // get pilot's desired throttle
-    pilot_throttle_scaled = get_pilot_desired_throttle(pilot_input[3]);
+    pilot_throttle_scaled = get_pilot_desired_throttle(channel_throttle->get_control_in());
 
     // call attitude controller
     attitude_control.input_euler_angle_roll_pitch_euler_rate_yaw(target_roll, target_pitch, target_yaw_rate, get_smoothing_gain());
