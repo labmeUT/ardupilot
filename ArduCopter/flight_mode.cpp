@@ -103,10 +103,6 @@ bool Copter::set_mode(control_mode_t mode, mode_reason_t reason)
             success = throw_init(ignore_checks);
             break;
 
-        case MEIWAKU:
-            success = meiwaku_init(ignore_checks);
-            break;
-
         default:
             success = false;
             break;
@@ -226,10 +222,6 @@ void Copter::update_flight_mode()
 
         case THROW:
             throw_run();
-            break;
-
-        case MEIWAKU:
-            meiwaku_run();
             break;
 
         default:
