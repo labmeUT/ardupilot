@@ -29,7 +29,7 @@ struct sitl_fdm {
 };
 
 // number of rc output channels
-#define SITL_NUM_CHANNELS 14
+#define SITL_NUM_CHANNELS 16
 
 class SITL {
 public:
@@ -48,7 +48,8 @@ public:
         GPS_TYPE_MTK19 = 4,
         GPS_TYPE_NMEA  = 5,
         GPS_TYPE_SBP   = 6,
-        GPS_TYPE_FILE  = 7
+        GPS_TYPE_FILE  = 7,
+        GPS_TYPE_NOVA  = 8,
     };
 
     struct sitl_fdm state;
@@ -103,8 +104,12 @@ public:
     AP_Int16 flow_rate; // optflow data rate (Hz)
     AP_Int8  flow_delay; // optflow data delay
     AP_Int8  terrain_enable; // enable using terrain for height
+    AP_Int8  pin_mask; // for GPIO emulation
+    AP_Float speedup; // simulation speedup
 
     // wind control
+    float wind_speed_active;
+    float wind_direction_active;
     AP_Float wind_speed;
     AP_Float wind_direction;
     AP_Float wind_turbulance;
@@ -118,6 +123,7 @@ public:
     AP_Int16 adsb_plane_count;
     AP_Float adsb_radius_m;
     AP_Float adsb_altitude_m;
+    AP_Int8  adsb_tx;
 
     // Earth magnetic field anomaly
     AP_Vector3f mag_anomaly_ned; // NED anomaly vector at ground level (mGauss)

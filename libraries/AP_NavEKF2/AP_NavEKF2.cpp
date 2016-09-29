@@ -24,9 +24,9 @@
 #define ACC_P_NSE_DEFAULT       6.0E-01f
 #define GBIAS_P_NSE_DEFAULT     1.0E-04f
 #define GSCALE_P_NSE_DEFAULT    5.0E-04f
-#define ABIAS_P_NSE_DEFAULT     1.0E-03f
-#define MAGB_P_NSE_DEFAULT      5.0E-04f
-#define MAGE_P_NSE_DEFAULT      5.0E-03f
+#define ABIAS_P_NSE_DEFAULT     5.0E-03f
+#define MAGB_P_NSE_DEFAULT      1.0E-04f
+#define MAGE_P_NSE_DEFAULT      1.0E-03f
 #define VEL_I_GATE_DEFAULT      500
 #define POS_I_GATE_DEFAULT      500
 #define HGT_I_GATE_DEFAULT      500
@@ -49,9 +49,9 @@
 #define ACC_P_NSE_DEFAULT       6.0E-01f
 #define GBIAS_P_NSE_DEFAULT     1.0E-04f
 #define GSCALE_P_NSE_DEFAULT    5.0E-04f
-#define ABIAS_P_NSE_DEFAULT     1.0E-03f
-#define MAGB_P_NSE_DEFAULT      5.0E-04f
-#define MAGE_P_NSE_DEFAULT      5.0E-03f
+#define ABIAS_P_NSE_DEFAULT     5.0E-03f
+#define MAGB_P_NSE_DEFAULT      1.0E-04f
+#define MAGE_P_NSE_DEFAULT      1.0E-03f
 #define VEL_I_GATE_DEFAULT      500
 #define POS_I_GATE_DEFAULT      500
 #define HGT_I_GATE_DEFAULT      500
@@ -74,9 +74,9 @@
 #define ACC_P_NSE_DEFAULT       6.0E-01f
 #define GBIAS_P_NSE_DEFAULT     1.0E-04f
 #define GSCALE_P_NSE_DEFAULT    5.0E-04f
-#define ABIAS_P_NSE_DEFAULT     1.0E-03f
-#define MAGB_P_NSE_DEFAULT      5.0E-04f
-#define MAGE_P_NSE_DEFAULT      5.0E-03f
+#define ABIAS_P_NSE_DEFAULT     5.0E-03f
+#define MAGB_P_NSE_DEFAULT      1.0E-04f
+#define MAGE_P_NSE_DEFAULT      1.0E-03f
 #define VEL_I_GATE_DEFAULT      500
 #define POS_I_GATE_DEFAULT      500
 #define HGT_I_GATE_DEFAULT      500
@@ -99,9 +99,9 @@
 #define ACC_P_NSE_DEFAULT       6.0E-01f
 #define GBIAS_P_NSE_DEFAULT     1.0E-04f
 #define GSCALE_P_NSE_DEFAULT    5.0E-04f
-#define ABIAS_P_NSE_DEFAULT     1.0E-03f
-#define MAGB_P_NSE_DEFAULT      5.0E-04f
-#define MAGE_P_NSE_DEFAULT      5.0E-03f
+#define ABIAS_P_NSE_DEFAULT     5.0E-03f
+#define MAGB_P_NSE_DEFAULT      1.0E-04f
+#define MAGE_P_NSE_DEFAULT      1.0E-03f
 #define VEL_I_GATE_DEFAULT      500
 #define POS_I_GATE_DEFAULT      500
 #define HGT_I_GATE_DEFAULT      500
@@ -201,7 +201,7 @@ const AP_Param::GroupInfo NavEKF2::var_info[] = {
 
     // @Param: ALT_SOURCE
     // @DisplayName: Primary height source
-    // @Description: This parameter controls which height sensor is used by the EKF. If the selected optionn cannot be used, it will default to Baro as the primary height source. Setting 0 will use the baro altitude at all times. Setting 1 uses the range finder and is only available in combination with optical flow navigation (EK2_GPS_TYPE = 3). Setting 2 uses GPS.
+    // @Description: This parameter controls the primary height sensor used by the EKF. If the selected option cannot be used, it will default to Baro as the primary height source. Setting 0 will use the baro altitude at all times. Setting 1 uses the range finder and is only available in combination with optical flow navigation (EK2_GPS_TYPE = 3). Setting 2 uses GPS. NOTE - the EK2_RNG_USE_HGT parameter can be used to switch to range-finder when close to the ground.
     // @Values: 0:Use Baro, 1:Use Range Finder, 2:Use GPS
     // @User: Advanced
     AP_GROUPINFO("ALT_SOURCE", 9, NavEKF2, _altSource, 0),
@@ -454,11 +454,11 @@ const AP_Param::GroupInfo NavEKF2::var_info[] = {
 
     // @Param: TAU_OUTPUT
     // @DisplayName: Output complementary filter time constant (centi-sec)
-    // @Description: Sets the time constant of the output complementary filter/predictor in centi-seconds. Set to a negative number to use a computationally cheaper and less accurate method with an automatically calculated time constant.
-    // @Range: -1 100
-    // @Increment: 10
+    // @Description: Sets the time constant of the output complementary filter/predictor in centi-seconds.
+    // @Range: 10 50
+    // @Increment: 5
     // @User: Advanced
-    AP_GROUPINFO("TAU_OUTPUT", 39, NavEKF2, _tauVelPosOutput, 50),
+    AP_GROUPINFO("TAU_OUTPUT", 39, NavEKF2, _tauVelPosOutput, 25),
 
     // @Param: MAGE_P_NSE
     // @DisplayName: Earth magnetic field process noise (gauss/s)
@@ -476,6 +476,22 @@ const AP_Param::GroupInfo NavEKF2::var_info[] = {
     // @Units: gauss/s
     AP_GROUPINFO("MAGB_P_NSE", 41, NavEKF2, _magBodyProcessNoise, MAGB_P_NSE_DEFAULT),
 
+    // @Param: RNG_USE_HGT
+    // @DisplayName: Range finder switch height percentage
+    // @Description: The range finder will be used as the primary height source when below a specified percentage of the sensor maximum as set by the RNGFND_MAX_CM parameter. Set to -1 to prevent range finder use.
+    // @Range: -1 70
+    // @Increment: 1
+    // @User: Advanced
+    // @Units: %
+    AP_GROUPINFO("RNG_USE_HGT", 42, NavEKF2, _useRngSwHgt, -1),
+
+    // @Param: TERR_GRAD
+    // @DisplayName: Maximum terrain gradient
+    // @Description: Specifies the maxium gradient of the terrain below the vehicle when it is using range finder as a height reference
+    // @Range: 0 0.2
+    // @Increment: 0.01
+    // @User: Advanced
+    AP_GROUPINFO("TERR_GRAD", 43, NavEKF2, _terrGradMax, 0.1f),
 
     AP_GROUPEND
 };
@@ -641,10 +657,35 @@ void NavEKF2::UpdateFilter(void)
     // If the current core selected has a bad fault score or is unhealthy, switch to a healthy core with the lowest fault score
     if (core[primary].faultScore() > 0.0f || !core[primary].healthy()) {
         float score = 1e9f;
+        bool changed = false;
         for (uint8_t i=0; i<num_cores; i++) {
             if (core[i].healthy()) {
                 float tempScore = core[i].faultScore();
                 if (tempScore < score) {
+                    Vector3f eulers_old_primary, eulers_new_primary;
+                    float old_yaw_delta;
+
+                    // If core yaw reset data has been consumed reset delta to zero
+                    if (!yaw_reset_data.core_changed) {
+                        yaw_reset_data.core_delta = 0;
+                    }
+
+                    // If current primary has reset yaw after controller got it, add it to the delta
+                    // Prevent adding the delta if we have already changed primary in this filter update
+                    if (!changed && core[primary].getLastYawResetAngle(old_yaw_delta) > yaw_reset_data.last_function_call) {
+                        yaw_reset_data.core_delta += old_yaw_delta;
+                    }
+
+                    core[primary].getEulerAngles(eulers_old_primary);
+                    core[i].getEulerAngles(eulers_new_primary);
+
+                    // Record the yaw delta between current core and new primary core and the timestamp of the core change
+                    // Add current delta in case it hasn't been consumed yet
+                    yaw_reset_data.core_delta = wrap_PI(eulers_new_primary.z - eulers_old_primary.z + yaw_reset_data.core_delta);
+                    yaw_reset_data.last_primary_change = imuSampleTime_us / 1000;
+                    yaw_reset_data.core_changed = true;
+
+                    changed = true;
                     primary = i;
                     score = tempScore;
                 }
@@ -674,17 +715,38 @@ int8_t NavEKF2::getPrimaryCoreIndex(void) const
     return primary;
 }
 
+// returns the index of the IMU of the primary core
+// return -1 if no primary core selected
+int8_t NavEKF2::getPrimaryCoreIMUIndex(void) const
+{
+    if (!core) {
+        return -1;
+    }
+    return core[primary].getIMUIndex();
+}
 
-// Return the last calculated NED position relative to the reference point (m).
+// Write the last calculated NE position relative to the reference point (m).
 // If a calculated solution is not available, use the best available data and return false
 // If false returned, do not use for flight control
-bool NavEKF2::getPosNED(int8_t instance, Vector3f &pos)
+bool NavEKF2::getPosNE(int8_t instance, Vector2f &posNE)
 {
     if (instance < 0 || instance >= num_cores) instance = primary;
     if (!core) {
         return false;
     }
-    return core[instance].getPosNED(pos);
+    return core[instance].getPosNE(posNE);
+}
+
+// Write the last calculated D position relative to the reference point (m).
+// If a calculated solution is not available, use the best available data and return false
+// If false returned, do not use for flight control
+bool NavEKF2::getPosD(int8_t instance, float &posD)
+{
+    if (instance < 0 || instance >= num_cores) instance = primary;
+    if (!core) {
+        return false;
+    }
+    return core[instance].getPosD(posD);
 }
 
 // return NED velocity in m/s
@@ -940,6 +1002,15 @@ void NavEKF2::getInnovations(int8_t instance, Vector3f &velInnov, Vector3f &posI
     }
 }
 
+// publish output observer angular, velocity and position tracking error
+void NavEKF2::getOutputTrackingError(int8_t instance, Vector3f &error) const
+{
+    if (instance < 0 || instance >= num_cores) instance = primary;
+    if (core) {
+        core[instance].getOutputTrackingError(error);
+    }
+}
+
 // return the innovation consistency test ratios for the velocity, position, magnetometer and true airspeed measurements
 void NavEKF2::getVariances(int8_t instance, float &velVar, float &posVar, float &hgtVar, Vector3f &magVar, float &tasVar, Vector2f &offset)
 {
@@ -1004,6 +1075,19 @@ void NavEKF2::setTouchdownExpected(bool val)
             core[i].setTouchdownExpected(val);
         }
     }
+}
+
+// Set to true if the terrain underneath is stable enough to be used as a height reference
+// in combination with a range finder. Set to false if the terrain underneath the vehicle
+// cannot be used as a height reference
+void NavEKF2::setTerrainHgtStable(bool val)
+{
+    if (core) {
+        for (uint8_t i=0; i<num_cores; i++) {
+            core[i].setTerrainHgtStable(val);
+        }
+    }
+
 }
 
 /*
@@ -1093,14 +1177,35 @@ bool NavEKF2::getHeightControlLimit(float &height) const
     return core[primary].getHeightControlLimit(height);
 }
 
-// return the amount of yaw angle change due to the last yaw angle reset in radians
+// return the amount of yaw angle change (in radians) due to the last yaw angle reset or core selection switch
 // returns the time of the last yaw angle reset or 0 if no reset has ever occurred
-uint32_t NavEKF2::getLastYawResetAngle(float &yawAng) const
+uint32_t NavEKF2::getLastYawResetAngle(float &yawAngDelta)
 {
     if (!core) {
         return 0;
     }
-    return core[primary].getLastYawResetAngle(yawAng);
+
+    // Record last time controller got the yaw reset
+    yaw_reset_data.last_function_call = imuSampleTime_us / 1000;
+    yawAngDelta = 0;
+    uint32_t lastYawReset_ms = 0;
+    float temp_yawAng;
+    uint32_t lastCoreYawReset_ms = core[primary].getLastYawResetAngle(temp_yawAng);
+
+    // If core has changed (and data not consumed yet) or if the core change was the last yaw reset, return its data
+    if (yaw_reset_data.core_changed || lastCoreYawReset_ms <= yaw_reset_data.last_primary_change) {
+        yawAngDelta = yaw_reset_data.core_delta;
+        lastYawReset_ms = yaw_reset_data.last_primary_change;
+        yaw_reset_data.core_changed = false;
+    }
+
+    // If current core yaw reset event was the last one, add it to the delta
+    if (lastCoreYawReset_ms > lastYawReset_ms) {
+        yawAngDelta = wrap_PI(yawAngDelta + temp_yawAng);
+        lastYawReset_ms = lastCoreYawReset_ms;
+    }
+
+    return lastYawReset_ms;
 }
 
 // return the amount of NE position change due to the last position reset in metres

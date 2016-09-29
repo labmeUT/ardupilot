@@ -243,7 +243,7 @@ void AC_PosControl::relax_alt_hold_controllers(float throttle_setting)
     _accel_last_z_cms = 0.0f;
     _accel_target.z = -(_ahrs.get_accel_ef_blended().z + GRAVITY_MSS) * 100.0f;
     _flags.reset_accel_to_throttle = true;
-    _pid_accel_z.set_integrator(throttle_setting*1000.0f);
+    _pid_accel_z.set_integrator((throttle_setting-_motors.get_throttle_hover())*1000.0f);
 }
 
 // get_alt_error - returns altitude error in cm
@@ -472,6 +472,11 @@ void AC_PosControl::accel_to_throttle(float accel_target_z)
 
     // get i term
     i = _pid_accel_z.get_integrator();
+
+    // ensure imax is always large enough to overpower hover throttle
+    if (_motors.get_throttle_hover() * 1000.0f > _pid_accel_z.imax()) {
+        _pid_accel_z.imax(_motors.get_throttle_hover() * 1000.0f);
+    }
 
     // update i term as long as we haven't breached the limits or the I term will certainly reduce
     // To-Do: should this be replaced with limits check from attitude_controller?
@@ -742,6 +747,11 @@ void AC_PosControl::update_vel_controller_xyz(float ekfNavVelGainScaler)
 
     // run z-axis position controller
     update_z_controller();
+}
+
+float AC_PosControl::get_horizontal_error() const
+{
+    return norm(_pos_error.x, _pos_error.y);
 }
 
 ///

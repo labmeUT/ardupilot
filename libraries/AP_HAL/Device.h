@@ -20,6 +20,7 @@
 #include <inttypes.h>
 
 #include "AP_HAL_Namespace.h"
+#include "utility/functor.h"
 
 /*
  * This is an interface abstracting I2C and SPI devices
@@ -36,7 +37,8 @@ public:
         SPEED_LOW,
     };
 
-    typedef void PeriodicHandle;
+    FUNCTOR_TYPEDEF(PeriodicCb, bool);
+    typedef void* PeriodicHandle;
 
     const enum BusType bus_type;
 
@@ -90,6 +92,16 @@ public:
         return transfer(buf, sizeof(buf), nullptr, 0);
     }
 
+    /**
+     * Wrapper function over #transfer() to read a sequence of bytes from
+     * device. No value is written, differently from the #read_registers()
+     * method and hence doesn't include the read flag set by #set_read_flag()
+     */
+    bool read(uint8_t *recv, uint32_t recv_len)
+    {
+        return transfer(nullptr, 0, recv, recv_len);
+    }
+
     /*
      * Get the semaphore for the bus this device is in.  This is intended for
      * drivers to use during initialization phase only.
@@ -108,15 +120,26 @@ public:
      * lock must be taken.
      *
      * Return: A handle for this periodic callback. To cancel the callback
-     * delete the handle.
+     * call #unregister_callback() or return false on the callback.
      */
-    virtual PeriodicHandle *register_periodic_callback(uint32_t period_usec, AP_HAL::MemberProc) = 0;
+    virtual PeriodicHandle register_periodic_callback(uint32_t period_usec, PeriodicCb) = 0;
 
     /*
-     * Temporary method to get the fd used by this device: it's here only for
-     * allowing to convert old drivers to this new interface
+     * Adjust the time for the periodic callback registered with
+     * #register_periodic_callback. Note that the time will be re-calculated
+     * from the moment this call is made and expire after @period_usec.
+     *
+     * Return: true if periodic callback was sucessfully adjusted, false otherwise.
      */
-    virtual int get_fd() = 0;
+    virtual bool adjust_periodic_callback(PeriodicHandle h, uint32_t period_usec) = 0;
+
+    /*
+     * Cancel a periodic callback on this bus.
+     *
+     * Return: true if callback was successfully unregistered, false
+     * otherwise.
+     */
+    virtual bool unregister_callback(PeriodicHandle h) { return false; }
 
     /**
      * Some devices connected on the I2C or SPI bus require a bit to be set on

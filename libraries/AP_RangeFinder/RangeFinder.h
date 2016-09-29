@@ -48,7 +48,8 @@ public:
         RangeFinder_TYPE_LWI2C  = 7,
         RangeFinder_TYPE_LWSER  = 8,
         RangeFinder_TYPE_BEBOP  = 9,
-        RangeFinder_TYPE_MAVLink = 10
+        RangeFinder_TYPE_MAVLink = 10,
+        RangeFinder_TYPE_LEDDARONE = 12
     };
 
     enum RangeFinder_Function {
@@ -193,4 +194,5 @@ private:
     void update_instance(uint8_t instance);  
 
     void update_pre_arm_check(uint8_t instance);
+    void _add_backend(AP_RangeFinder_Backend *driver);
 };

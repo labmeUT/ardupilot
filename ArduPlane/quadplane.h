@@ -35,6 +35,8 @@ class QuadPlane
 public:
     friend class Plane;
     friend class AP_Tuning_Plane;
+    friend class GCS_MAVLINK_Plane;
+    friend class AP_AdvancedFailsafe_Plane;
     
     QuadPlane(AP_AHRS_NavEKF &_ahrs);
 
@@ -135,7 +137,10 @@ private:
 
     // vertical acceleration the pilot may request
     AP_Int16 pilot_accel_z;
-    
+
+    // check for quadplane assistance needed
+    bool assistance_needed(float aspeed);
+
     // update transition handling
     void update_transition(void);
 
@@ -163,6 +168,7 @@ private:
 
     void init_hover(void);
     void control_hover(void);
+    void run_rate_controller(void);
 
     void init_loiter(void);
     void init_land(void);
@@ -187,6 +193,8 @@ private:
 
     void guided_start(void);
     void guided_update(void);
+
+    void check_throttle_suppression(void);
     
     AP_Int16 transition_time_ms;
 
@@ -199,6 +207,10 @@ private:
     // speed below which quad assistance is given
     AP_Float assist_speed;
 
+    // angular error at which quad assistance is given
+    AP_Int8 assist_angle;
+    uint32_t angle_error_start_ms;
+    
     // maximum yaw rate in degrees/second
     AP_Float yaw_rate_max;
 
@@ -224,6 +236,9 @@ private:
     // control ESC throttle calibration
     AP_Int8 esc_calibration;
     void run_esc_calibration(void);
+
+    // ICEngine control on landing
+    AP_Int8 land_icengine_cut;
     
     struct {
         AP_Float gain;
@@ -259,10 +274,13 @@ private:
     } transition_state;
 
     // true when waiting for pilot throttle
-    bool throttle_wait;
+    bool throttle_wait:1;
 
     // true when quad is assisting a fixed wing mode
-    bool assisted_flight;
+    bool assisted_flight:1;
+
+    // true when in angle assist
+    bool in_angle_assist:1;
 
     struct {
         // time when motors reached lower limit
@@ -321,9 +339,14 @@ private:
         bool motors_active:1;
     } tilt;
 
+    // time when motors were last active
+    uint32_t last_motors_active_ms;
+    
     void tiltrotor_slew(float tilt);
     void tiltrotor_update(void);
     void tilt_compensate(float *thrust, uint8_t num_motors);
+
+    void afs_terminate(void);
     
 public:
     void motor_test_output();

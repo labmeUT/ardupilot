@@ -203,6 +203,7 @@ float AC_AttitudeControl_Multi::get_throttle_boosted(float throttle_in)
 // throttle value should be 0 ~ 1
 float AC_AttitudeControl_Multi::get_throttle_avg_max(float throttle_in)
 {
+    throttle_in = constrain_float(throttle_in, 0.0f, 1.0f);
     return MAX(throttle_in, throttle_in*MAX(0.0f,1.0f-_throttle_rpy_mix)+_motors.get_throttle_hover()*_throttle_rpy_mix);
 }
 
@@ -230,4 +231,20 @@ void AC_AttitudeControl_Multi::rate_controller_run()
     _motors.set_yaw(rate_target_to_motor_yaw(_rate_target_ang_vel.z));
 
     control_monitor_update();
+}
+
+// sanity check parameters.  should be called once before takeoff
+void AC_AttitudeControl_Multi::parameter_sanity_check()
+{
+    // sanity check throttle mix parameters
+    if (_thr_mix_min < 0.1f || _thr_mix_min > 0.25f) {
+        _thr_mix_min = AC_ATTITUDE_CONTROL_MIN_DEFAULT;
+    }
+    if (_thr_mix_max < 0.5f || _thr_mix_max > 0.9f) {
+        _thr_mix_max = AC_ATTITUDE_CONTROL_MAX_DEFAULT;
+    }
+    if (_thr_mix_min > _thr_mix_max) {
+        _thr_mix_min = AC_ATTITUDE_CONTROL_MIN_DEFAULT;
+        _thr_mix_max = AC_ATTITUDE_CONTROL_MAX_DEFAULT;
+    }
 }

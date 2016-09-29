@@ -32,7 +32,7 @@
 #include <time.h>
 #include <dirent.h>
 #include <AP_HAL/utility/RingBuffer.h>
-#ifdef __APPLE__
+#if defined(__APPLE__) && defined(__MACH__)
 #include <sys/param.h>
 #include <sys/mount.h>
 #elif !DATAFLASH_FILE_MINIMAL
@@ -207,7 +207,10 @@ void DataFlash_File::periodic_fullrate(const uint32_t now)
 uint16_t DataFlash_File::bufferspace_available()
 {
     uint16_t _head;
-    return (BUF_SPACE(_writebuf)) - critical_message_reserved_space();
+    const uint16_t space = BUF_SPACE(_writebuf);
+    const uint16_t crit = critical_message_reserved_space();
+
+    return (space > crit) ? space - crit : 0;
 }
 
 // return true for CardInserted() if we successfully initialised
@@ -448,6 +451,7 @@ char *DataFlash_File::_lastlog_file_name(void) const
 void DataFlash_File::EraseAll()
 {
     uint16_t log_num;
+    const bool was_logging = (_write_fd != -1);
     stop_logging();
 #if !DATAFLASH_FILE_MINIMAL
     for (log_num=1; log_num<=MAX_LOG_FILES; log_num++) {
@@ -465,6 +469,10 @@ void DataFlash_File::EraseAll()
     }
 #endif
     _cached_oldest_log = 0;
+
+    if (was_logging) {
+        start_new_log();
+    }
 }
 
 /* Write a block of data at current offset */
@@ -816,6 +824,12 @@ uint16_t DataFlash_File::start_new_log(void)
         _read_fd = -1;
     }
 
+    if (disk_space_avail() < _free_space_min_avail) {
+        hal.console->printf("Out of space for logging\n");
+        _open_error = true;
+        return 0xffff;
+    }
+
     uint16_t log_num = find_last_log();
     // re-use empty logs if possible
     if (_get_log_size(log_num) > 0 || log_num == 0) {
@@ -861,8 +875,13 @@ uint16_t DataFlash_File::start_new_log(void)
 
     char buf[30];
     snprintf(buf, sizeof(buf), "%u\r\n", (unsigned)log_num);
-    write(fd, buf, strlen(buf));
+    const ssize_t to_write = strlen(buf);
+    const ssize_t written = write(fd, buf, to_write);
     close(fd);
+
+    if (written < to_write) {
+        return 0xFFFF;
+    }
 
     return log_num;
 }
@@ -1055,6 +1074,15 @@ void DataFlash_File::_io_timer(void)
         // least once per 2 seconds if data is available
         return;
     }
+    if (tnow - _free_space_last_check_time > _free_space_check_interval) {
+        _free_space_last_check_time = tnow;
+        if (disk_space_avail() < _free_space_min_avail) {
+            hal.console->printf("Out of space for logging\n");
+            stop_logging();
+            _open_error = true; // prevent logging starting again
+            return;
+        }
+    }
 
     hal.util->perf_begin(_perf_write);
 
@@ -1099,6 +1127,30 @@ void DataFlash_File::_io_timer(void)
     }
     hal.util->perf_end(_perf_write);
 }
+
+// this sensor is enabled if we should be logging at the moment
+bool DataFlash_File::logging_enabled() const
+{
+    if (hal.util->get_soft_armed() ||
+        _front.log_while_disarmed()) {
+        return true;
+    }
+    return false;
+}
+
+bool DataFlash_File::logging_failed() const
+{
+    if (_write_fd == -1 &&
+        (hal.util->get_soft_armed() ||
+         _front.log_while_disarmed())) {
+        return true;
+    }
+    if (_open_error) {
+        return true;
+    }
+    return false;
+}
+
 
 #endif // HAL_OS_POSIX_IO
 

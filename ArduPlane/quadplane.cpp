@@ -313,7 +313,23 @@ const AP_Param::GroupInfo QuadPlane::var_info[] = {
     // @Increment: 0.25
     // @User: Standard
     AP_GROUPINFO("VFWD_ALT", 43, QuadPlane, vel_forward_alt_cutoff,  0),
+
+    // @Param: LAND_ICE_CUT
+    // @DisplayName: Cut IC engine on landing
+    // @Description: This controls stopping an internal combustion engine in the final landing stage of a VTOL. This is important for aircraft where the forward thrust engine may experience prop-strike if left running during landing. This requires the engine controls are enabled using the ICE_* parameters.
+    // @Values: 0:Disabled,1:Enabled
+    // @User: Standard
+    AP_GROUPINFO("LAND_ICE_CUT", 44, QuadPlane, land_icengine_cut,  1),
     
+    // @Param: ASSIST_ANGLE
+    // @DisplayName: Quadplane assistance angle
+    // @Description: This is the angular error in attitude beyond which the quadplane VTOL motors will provide stability assistance. This will only be used if Q_ASSIST_SPEED is also non-zero. Assistance will be given if the attitude is outside the normal attitude limits by at least 5 degrees and the angular error in roll or pitch is greater than this angle for at least 1 second. Set to zero to disable angle assistance.
+    // @Units: degrees
+    // @Range: 0 90
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("ASSIST_ANGLE", 45, QuadPlane, assist_angle, 30),
+
     AP_GROUPEND
 };
 
@@ -433,15 +449,20 @@ bool QuadPlane::setup(void)
     motors->set_interlock(true);
     pid_accel_z.set_dt(loop_delta_t);
     pos_control->set_dt(loop_delta_t);
+    attitude_control->parameter_sanity_check();
 
     // setup the trim of any motors used by AP_Motors so px4io
     // failsafe will disable motors
     for (uint8_t i=0; i<8; i++) {
-        RC_Channel_aux::set_servo_failsafe_pwm((RC_Channel_aux::Aux_servo_function_t)(RC_Channel_aux::k_motor1+i),
-                                               thr_min_pwm);
+        RC_Channel_aux::Aux_servo_function_t func = (RC_Channel_aux::Aux_servo_function_t)(RC_Channel_aux::k_motor1+i);
+        RC_Channel_aux::set_servo_failsafe_pwm(func, thr_min_pwm);
+        uint8_t chan;
+        if (RC_Channel_aux::find_channel(func, chan)) {
+            RC_Channel::rc_channel(chan)->set_radio_trim(thr_min_pwm);
+        }
     }
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_PX4
+#if HAVE_PX4_MIXER
     // redo failsafe mixing on px4
     plane.setup_failsafe_mixing();
 #endif
@@ -627,7 +648,7 @@ bool QuadPlane::is_flying(void)
     if (!available()) {
         return false;
     }
-    if (motors->get_throttle() > 0.1 && !motors->limit.throttle_lower) {
+    if (motors->get_throttle() > 0.01f && !motors->limit.throttle_lower) {
         return true;
     }
     return false;
@@ -637,7 +658,7 @@ bool QuadPlane::is_flying(void)
 bool QuadPlane::should_relax(void)
 {
     bool motor_at_lower_limit = motors->limit.throttle_lower && attitude_control->is_throttle_mix_min();
-    if (motors->get_throttle() < 0.01) {
+    if (motors->get_throttle() < 0.01f) {
         motor_at_lower_limit = true;
     }
     if (!motor_at_lower_limit) {
@@ -654,7 +675,19 @@ bool QuadPlane::should_relax(void)
 // see if we are flying in vtol
 bool QuadPlane::is_flying_vtol(void)
 {
+    if (!available()) {
+        return false;
+    }
+    if (motors->get_throttle() > 0.01f) {
+        // if we are demanding more than 1% throttle then don't consider aircraft landed
+        return true;
+    }
+    if (plane.control_mode == QSTABILIZE || plane.control_mode == QHOVER || plane.control_mode == QLOITER) {
+        // in manual flight modes only consider aircraft landed when pilot demanded throttle is zero
+        return plane.channel_throttle->get_control_in() > 0;
+    }
     if (in_vtol_mode() && millis() - landing_detect.lower_limit_start_ms > 5000) {
+        // use landing detector
         return true;
     }
     return false;
@@ -726,6 +759,10 @@ void QuadPlane::control_loiter()
         float height_above_ground = plane.relative_ground_altitude(plane.g.rangefinder_landing);
         if (height_above_ground < land_final_alt && poscontrol.state < QPOS_LAND_FINAL) {
             poscontrol.state = QPOS_LAND_FINAL;
+            // cut IC engine if enabled
+            if (land_icengine_cut != 0) {
+                plane.g2.ice_control.engine_control(0, 0, 0);
+            }
         }
         float descent_rate = (poscontrol.state == QPOS_LAND_FINAL)? land_speed_cms:landing_descent_rate_cms(height_above_ground);
         pos_control->set_alt_target_from_climb_rate(-descent_rate, plane.G_Dt, true);
@@ -848,6 +885,65 @@ float QuadPlane::desired_auto_yaw_rate_cds(void)
 }
 
 /*
+  return true if the quadplane should provide stability assistance
+ */
+bool QuadPlane::assistance_needed(float aspeed)
+{
+    if (assist_speed <= 0) {
+        // assistance disabled
+        in_angle_assist = false;
+        angle_error_start_ms = 0;
+        return false;
+    }
+    if (aspeed < assist_speed) {
+        // assistance due to Q_ASSIST_SPEED
+        in_angle_assist = false;
+        angle_error_start_ms = 0;
+        return true;
+    }
+
+    if (assist_angle <= 0) {
+        in_angle_assist = false;
+        angle_error_start_ms = 0;
+        return false;
+    }
+
+    /*
+      now check if we should provide assistance due to attitude error
+     */
+
+    const uint16_t allowed_envelope_error_cd = 500U;
+    if (labs(ahrs.roll_sensor) <= plane.aparm.roll_limit_cd+allowed_envelope_error_cd &&
+        ahrs.pitch_sensor < plane.aparm.pitch_limit_max_cd+allowed_envelope_error_cd &&
+        ahrs.pitch_sensor > -(plane.aparm.pitch_limit_min_cd+allowed_envelope_error_cd)) {
+        // we are inside allowed attitude envelope
+        in_angle_assist = false;
+        angle_error_start_ms = 0;
+        return false;
+    }
+    
+    uint32_t max_angle_cd = 100U*assist_angle;
+    if ((labs(ahrs.roll_sensor - plane.nav_roll_cd) < max_angle_cd &&
+         labs(ahrs.pitch_sensor - plane.nav_pitch_cd) < max_angle_cd)) {
+        // not beyond angle error
+        angle_error_start_ms = 0;
+        in_angle_assist = false;
+        return false;
+    }
+    if (angle_error_start_ms == 0) {
+        angle_error_start_ms = AP_HAL::millis();
+    }
+    bool ret = (AP_HAL::millis() - angle_error_start_ms) >= 1000U;
+    if (ret && !in_angle_assist) {
+        in_angle_assist = true;
+        GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_INFO, "Angle assist r=%d p=%d",
+                                         (int)(ahrs.roll_sensor/100),
+                                         (int)(ahrs.pitch_sensor/100));
+    }
+    return ret;
+}
+
+/*
   update for transition from quadplane to fixed wing mode
  */
 void QuadPlane::update_transition(void)
@@ -870,7 +966,8 @@ void QuadPlane::update_transition(void)
     /*
       see if we should provide some assistance
      */
-    if (have_airspeed && aspeed < assist_speed &&
+    if (have_airspeed &&
+        assistance_needed(aspeed) &&
         (plane.auto_throttle_mode ||
          plane.channel_throttle->get_control_in()>0 ||
          plane.is_flying())) {
@@ -913,7 +1010,7 @@ void QuadPlane::update_transition(void)
         }
         assisted_flight = true;
         hold_hover(assist_climb_rate_cms());
-        attitude_control->rate_controller_run();
+        run_rate_controller();
         motors_output();
         last_throttle = motors->get_throttle();
         break;
@@ -934,7 +1031,7 @@ void QuadPlane::update_transition(void)
         }
         assisted_flight = true;
         hold_stabilize(throttle_scaled);
-        attitude_control->rate_controller_run();
+        run_rate_controller();
         motors_output();
         break;
     }
@@ -949,6 +1046,15 @@ void QuadPlane::update_transition(void)
 }
 
 /*
+  run multicopter rate controller
+ */
+void QuadPlane::run_rate_controller(void)
+{
+    attitude_control->set_throttle_mix_max();
+    attitude_control->rate_controller_run();
+}
+
+/*
   update motor output for quadplane
  */
 void QuadPlane::update(void)
@@ -957,6 +1063,12 @@ void QuadPlane::update(void)
         return;
     }
 
+    if (plane.afs.should_crash_vehicle()) {
+        motors->set_desired_spool_state(AP_Motors::DESIRED_SHUT_DOWN);
+        motors->output();
+        return;
+    }
+    
     if (motor_test.running) {
         motor_test_output();
         return;
@@ -968,7 +1080,7 @@ void QuadPlane::update(void)
         assisted_flight = false;
         
         // run low level rate controllers
-        attitude_control->rate_controller_run();
+        run_rate_controller();
 
         // output to motors
         motors_output();
@@ -993,14 +1105,75 @@ void QuadPlane::update(void)
 }
 
 /*
+  see if motors should be shutdown. If they should be then change AP_Motors state to 
+  AP_Motors::DESIRED_SHUT_DOWN
+
+  This is a safety check to prevent accidental motor runs on the
+  ground, such as if RC fails and QRTL is started
+ */
+void QuadPlane::check_throttle_suppression(void)
+{
+    // if the motors have been running in the last 2 seconds then
+    // allow them to run now
+    if (AP_HAL::millis() - last_motors_active_ms < 2000) {
+        return;
+    }
+
+    // see if motors are already disabled
+    if (motors->get_desired_spool_state() < AP_Motors::DESIRED_THROTTLE_UNLIMITED) {
+        return;
+    }
+
+    // if the users throttle is above zero then allow motors to run
+    if (plane.channel_throttle->get_control_in() != 0) {
+        return;
+    }
+
+    // if we are in a fixed wing auto throttle mode and we have
+    // unsuppressed the throttle then allow motors to run
+    if (plane.auto_throttle_mode && !plane.throttle_suppressed) {
+        return;
+    }
+
+    // if our vertical velocity is greater than 1m/s then allow motors to run
+    if (fabsf(inertial_nav.get_velocity_z()) > 100) {
+        return;
+    }
+
+    // if we are more than 5m from home altitude then allow motors to run
+    if (plane.relative_ground_altitude(plane.g.rangefinder_landing) > 5) {
+        return;
+    }
+
+    // allow for takeoff
+    if (plane.control_mode == AUTO && plane.mission.get_current_nav_cmd().id == MAV_CMD_NAV_VTOL_TAKEOFF) {
+        return;
+    }
+    
+    // motors should be in the spin when armed state to warn user they could become active
+    motors->set_desired_spool_state(AP_Motors::DESIRED_SPIN_WHEN_ARMED);
+    motors->set_throttle(0);
+    last_motors_active_ms = 0;
+}
+
+/*
   output motors and do any copter needed
  */
 void QuadPlane::motors_output(void)
 {
+    if (!hal.util->get_soft_armed() || plane.afs.should_crash_vehicle()) {
+        motors->set_desired_spool_state(AP_Motors::DESIRED_SHUT_DOWN);
+        motors->output();
+        return;
+    }
     if (esc_calibration && AP_Notify::flags.esc_calibration && plane.control_mode == QSTABILIZE) {
         // output is direct from run_esc_calibration()
         return;
     }
+
+    // see if motors should be shut down
+    check_throttle_suppression();
+    
     motors->output();
     if (motors->armed()) {
         plane.DataFlash.Log_Write_Rate(plane.ahrs, *motors, *attitude_control, *pos_control);
@@ -1010,6 +1183,12 @@ void QuadPlane::motors_output(void)
             attitude_control->control_monitor_log();
         }
     }
+
+    // remember when motors were last active for throttle suppression
+    if (motors->get_throttle() > 0.01f || tilt.motors_active) {
+        last_motors_active_ms = AP_HAL::millis();
+    }
+    
 }
 
 /*
@@ -1157,7 +1336,7 @@ bool QuadPlane::in_vtol_mode(void)
             plane.control_mode == QLOITER ||
             plane.control_mode == QLAND ||
             plane.control_mode == QRTL ||
-            (plane.control_mode == GUIDED && plane.auto_state.vtol_loiter) ||
+            ((plane.control_mode == GUIDED || plane.control_mode == AVOID_ADSB) && plane.auto_state.vtol_loiter) ||
             in_vtol_auto());
 }
 
@@ -1588,6 +1767,10 @@ bool QuadPlane::verify_vtol_takeoff(const AP_Mission::Mission_Command &cmd)
     }
     transition_state = TRANSITION_AIRSPEED_WAIT;
     plane.TECS_controller.set_pitch_max_limit(transition_pitch_max);
+    pos_control->set_alt_target(inertial_nav.get_altitude());
+
+    plane.complete_auto_takeoff();
+    
     return true;
 }
 
@@ -1615,7 +1798,7 @@ void QuadPlane::check_land_complete(void)
     // we only consider the vehicle landed when the motors have been
     // at minimum for 5s and the vertical position estimate has not
     // changed by more than 20cm for 4s
-    if (fabsf(height - landing_detect.vpos_start_m > 0.2)) {
+    if (fabsf(height - landing_detect.vpos_start_m) > 0.2) {
         // height has changed, call off landing detection
         landing_detect.land_start_ms = 0;
         return;
@@ -1660,6 +1843,11 @@ bool QuadPlane::verify_vtol_land(void)
     if (poscontrol.state == QPOS_LAND_DESCEND && height_above_ground < land_final_alt) {
         poscontrol.state = QPOS_LAND_FINAL;
         pos_control->set_alt_target(inertial_nav.get_altitude());
+
+        // cut IC engine if enabled
+        if (land_icengine_cut != 0) {
+            plane.g2.ice_control.engine_control(0, 0, 0);
+        }
         plane.gcs_send_text(MAV_SEVERITY_INFO,"Land final started");
     }
 
@@ -1840,4 +2028,12 @@ void QuadPlane::guided_update(void)
 {
     // run VTOL position controller
     vtol_position_controller();
+}
+
+void QuadPlane::afs_terminate(void)
+{
+    if (available()) {
+        motors->set_desired_spool_state(AP_Motors::DESIRED_SHUT_DOWN);
+        motors->output();
+    }
 }

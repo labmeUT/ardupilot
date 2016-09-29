@@ -319,7 +319,9 @@ void Copter::Log_Write_Control_Tuning()
     // get terrain altitude
     float terr_alt = 0.0f;
 #if AP_TERRAIN_AVAILABLE && AC_TERRAIN
-    terrain.height_above_terrain(terr_alt, true);
+    if (terrain.height_above_terrain(terr_alt, true)) {
+        terr_alt = 0.0f;
+    }
 #endif
 
     struct log_Control_Tuning pkt = {
@@ -363,7 +365,7 @@ void Copter::Log_Write_Performance()
         num_loops        : perf_info_get_num_loops(),
         max_time         : perf_info_get_max_time(),
         pm_test          : pmTest1,
-        i2c_lockup_count : hal.i2c->lockup_count(),
+        i2c_lockup_count : 0,
         ins_error_count  : ins.error_count(),
         log_dropped      : DataFlash.num_dropped() - perf_info_get_num_dropped(),
     };
@@ -714,6 +716,40 @@ void Copter::Log_Write_GuidedTarget(uint8_t target_type, const Vector3f& pos_tar
     DataFlash.WriteBlock(&pkt, sizeof(pkt));
 }
 
+// precision landing logging
+struct PACKED log_Throw {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    uint8_t stage;
+    float velocity;
+    float velocity_z;
+    float accel;
+    float ef_accel_z;
+    uint8_t throw_detect;
+    uint8_t attitude_ok;
+    uint8_t height_ok;
+    uint8_t pos_ok;
+};
+
+// Write a Throw mode details
+void Copter::Log_Write_Throw(ThrowModeStage stage, float velocity, float velocity_z, float accel, float ef_accel_z, bool throw_detect, bool attitude_ok, bool height_ok, bool pos_ok)
+{
+    struct log_Throw pkt = {
+        LOG_PACKET_HEADER_INIT(LOG_THROW_MSG),
+        time_us         : AP_HAL::micros64(),
+        stage           : (uint8_t)stage,
+        velocity        : velocity,
+        velocity_z      : velocity_z,
+        accel           : accel,
+        ef_accel_z      : ef_accel_z,
+        throw_detect    : throw_detect,
+        attitude_ok     : attitude_ok,
+        height_ok       : height_ok,
+        pos_ok          : pos_ok
+    };
+    DataFlash.WriteBlock(&pkt, sizeof(pkt));
+}
+
 const struct LogStructure Copter::log_structure[] = {
     LOG_COMMON_STRUCTURES,
 #if AUTOTUNE_ENABLED == ENABLED
@@ -754,6 +790,8 @@ const struct LogStructure Copter::log_structure[] = {
       "PL",    "QBffffff",    "TimeUS,Heal,bX,bY,eX,eY,pX,pY" },
     { LOG_GUIDEDTARGET_MSG, sizeof(log_GuidedTarget),
       "GUID",  "QBffffff",    "TimeUS,Type,pX,pY,pZ,vX,vY,vZ" },
+    { LOG_THROW_MSG, sizeof(log_Throw),
+      "THRO",  "QBffffbbbb",  "TimeUS,Stage,Vel,VelZ,Acc,AccEfZ,Throw,AttOk,HgtOk,PosOk" },
 };
 
 #if CLI_ENABLED == ENABLED
@@ -785,11 +823,15 @@ void Copter::Log_Write_Vehicle_Startup_Messages()
 // start a new log
 void Copter::start_logging() 
 {
-    if (g.log_bitmask != 0) {
+    if (g.log_bitmask != 0 && !in_log_download) {
         if (!ap.logging_started) {
             ap.logging_started = true;
             DataFlash.set_mission(&mission);
             DataFlash.setVehicle_Startup_Log_Writer(FUNCTOR_BIND(&copter, &Copter::Log_Write_Vehicle_Startup_Messages, void));
+            DataFlash.StartNewLog();
+        } else if (!DataFlash.logging_started()) {
+            // dataflash may have stopped logging - when we get_log_data,
+            // for example.  Try to restart:
             DataFlash.StartNewLog();
         }
         // enable writes

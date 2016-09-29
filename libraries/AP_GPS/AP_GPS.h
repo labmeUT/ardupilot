@@ -69,6 +69,8 @@ public:
 		GPS_TYPE_GSOF  = 11,
 		GPS_TYPE_QURT  = 12,
         GPS_TYPE_ERB = 13,
+        GPS_TYPE_MAV = 14,
+		GPS_TYPE_NOVA = 15,
     };
 
     /// GPS status codes
@@ -126,6 +128,9 @@ public:
         bool have_vertical_accuracy:1;
         uint32_t last_gps_time_ms;          ///< the system time we got the last GPS timestamp, milliseconds
     };
+
+    // Pass mavlink data to message handlers (for MAV type)
+    void handle_msg(mavlink_message_t *msg);
 
     // Accessor functions
 
@@ -384,7 +389,7 @@ private:
     struct detect_state {
         uint32_t detect_started_ms;
         uint32_t last_baud_change_ms;
-        uint8_t last_baud;
+        uint8_t current_baud;
         struct UBLOX_detect_state ublox_detect_state;
         struct MTK_detect_state mtk_detect_state;
         struct MTK19_detect_state mtk19_detect_state;
