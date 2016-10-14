@@ -152,6 +152,12 @@
  # define RANGEFINDER_TILT_CORRECTION ENABLED
 #endif
 
+//////////////////////////////////////////////////////////////////////////////
+// Proximity sensor
+//
+#ifndef PROXIMITY_ENABLED
+ # define PROXIMITY_ENABLED ENABLED
+#endif
 
 #ifndef MAV_SYSTEM_ID
  # define MAV_SYSTEM_ID          1
@@ -257,6 +263,13 @@
  #ifndef COMPASS_OFFSETS_MAX
   # define COMPASS_OFFSETS_MAX          500
  #endif
+#endif
+
+#ifndef COMPASS_CAL_STICK_GESTURE_TIME
+ #define COMPASS_CAL_STICK_GESTURE_TIME 2.0f // 2 seconds
+#endif
+#ifndef COMPASS_CAL_STICK_DELAY
+ #define COMPASS_CAL_STICK_DELAY 5.0f
 #endif
 
 //////////////////////////////////////////////////////////////////////////////

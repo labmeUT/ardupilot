@@ -136,9 +136,8 @@ void NavEKF2_core::getTiltError(float &ang) const
 // return the transformation matrix from XYZ (body) to NED axes
 void NavEKF2_core::getRotationBodyToNED(Matrix3f &mat) const
 {
-    Vector3f trim = _ahrs->get_trim();
     outputDataNew.quat.rotation_matrix(mat);
-    mat.rotateXYinv(trim);
+    mat = mat * _ahrs->get_rotation_vehicle_body_to_autopilot_body();
 }
 
 // return the quaternions defining the rotation from NED to XYZ (body) axes
@@ -520,10 +519,11 @@ void NavEKF2_core::send_status_report(mavlink_channel_t chan)
     Vector2f offset;
     getVariances(velVar, posVar, hgtVar, magVar, tasVar, offset);
 
-    // Only report range finder normalised innovation levels if the EKF needs the data.
-    // This prevents false alarms at the GCS if a range finder is fitted for other applications
+    // Only report range finder normalised innovation levels if the EKF needs the data for primary
+    // height estimation or optical flow operation. This prevents false alarms at the GCS if a
+    // range finder is fitted for other applications
     float temp;
-    if ((frontend->_useRngSwHgt > 0) || PV_AidingMode == AID_RELATIVE) {
+    if ((frontend->_useRngSwHgt > 0) || PV_AidingMode == AID_RELATIVE || flowDataValid) {
         temp = sqrtf(auxRngTestRatio);
     } else {
         temp = 0.0f;

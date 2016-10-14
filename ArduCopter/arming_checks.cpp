@@ -380,6 +380,17 @@ bool Copter::parameter_checks(bool display_failure)
             return false;
         }
         #endif
+
+        #if PROXIMITY_ENABLED == ENABLED
+        // check proximity sensor if enabled
+        if (copter.proximity.get_status() == AP_Proximity::Proximity_NoData) {
+            if (display_failure) {
+                gcs_send_text(MAV_SEVERITY_CRITICAL,"PreArm: check proximity sensor");
+            }
+            return false;
+        }
+        #endif
+
         #if FRAME_CONFIG == HELI_FRAME
         // check helicopter parameters
         if (!motors.parameter_check(display_failure)) {
@@ -534,6 +545,20 @@ bool Copter::pre_arm_gps_checks(bool display_failure)
         AP_Notify::flags.pre_arm_gps_check = true;
         return true;
     }
+
+#if CONFIG_HAL_BOARD != HAL_BOARD_SITL
+    // check GPS configuration has completed
+    uint8_t first_unconfigured = gps.first_unconfigured_gps();
+    if (first_unconfigured != AP_GPS::GPS_ALL_CONFIGURED) {
+        if (display_failure) {
+            GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_CRITICAL,
+                                             "PreArm: GPS %d failing configuration checks",
+                                              first_unconfigured + 1);
+            gps.broadcast_first_configuration_failure_reason();
+        }
+        return false;
+    }
+#endif
 
     // warn about hdop separately - to prevent user confusion with no gps lock
     if (gps.get_hdop() > g.gps_hdop_good) {

@@ -8,6 +8,7 @@
 #include <AC_WPNav/AC_WPNav.h>
 #include <AC_Fence/AC_Fence.h>
 #include <AC_Avoidance/AC_Avoid.h>
+#include <AP_Proximity/AP_Proximity.h>
 
 /*
   frame types for quadplane build. Most case be set with
@@ -347,6 +348,7 @@ private:
     void tilt_compensate(float *thrust, uint8_t num_motors);
 
     void afs_terminate(void);
+    bool guided_mode_enabled(void);
     
 public:
     void motor_test_output();
