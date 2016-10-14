@@ -199,6 +199,39 @@ private:
         uint32_t time_to_first_fix;
         uint32_t uptime;                                // milliseconds
     };
+    struct PACKED ubx_nav_pvt {
+        uint32_t time;                                  // GPS msToW
+        uint16_t year;
+        uint8_t month;
+        uint8_t day;
+        uint8_t hour;
+        uint8_t min;
+        uint8_t sec;
+        uint8_t valid;
+        uint32_t tAcc;
+        int32_t nano;
+        uint8_t fix_type;
+        uint8_t flags;                                  // It contains RTK Fix/Float status
+        uint8_t flags2;
+        uint8_t numsv;
+        int32_t lon;
+        int32_t lat;
+        int32_t height;
+        int32_t hmsl;
+        uint32_t hAcc;
+        uint32_t vAcc;
+        int32_t veIN;
+        int32_t veIE;
+        int32_t veID;
+        int32_t gspeed;
+        int32_t headmot;
+        uint32_t sAcc;
+        uint32_t headAcc;
+        uint16_t pDop;
+        uint8_t res1;
+        int32_t headVeh;
+        uint8_t res2;                                
+    };
     struct PACKED ubx_nav_dop {
         uint32_t time;                                  // GPS msToW
         uint16_t gDOP;
@@ -365,6 +398,7 @@ private:
         ubx_nav_dop dop;
         ubx_nav_solution solution;
         ubx_nav_velned velned;
+        ubx_nav_pvt pvt;
         ubx_cfg_msg_rate msg_rate;
         ubx_cfg_msg_rate_6 msg_rate_6;
         ubx_cfg_nav_settings nav_settings;
@@ -400,6 +434,7 @@ private:
         MSG_STATUS = 0x3,
         MSG_DOP = 0x4,
         MSG_SOL = 0x6,
+        MSG_PVT = 0x7,
         MSG_VELNED = 0x12,
         MSG_CFG_CFG = 0x09,
         MSG_CFG_RATE = 0x08,
@@ -435,6 +470,10 @@ private:
     enum ubx_nav_status_bits {
         NAV_STATUS_FIX_VALID = 1,
         NAV_STATUS_DGPS_USED = 2
+    };
+    enum ubx_nav_pvt_flags {
+        NAV_PVT_RTK_FLOAT = 0x40,
+        NAV_PVT_RTK_FIX = 0x80
     };
     enum ubx_hardware_version {
         ANTARIS = 0,
