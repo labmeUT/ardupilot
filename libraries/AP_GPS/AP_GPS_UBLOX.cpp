@@ -917,17 +917,23 @@ AP_GPS_UBLOX::_parse_gps(void)
         break;
     case MSG_PVT:
         /*Message Decoding*/
-        if(_buffer.pvt.fix_type == AP_GPS_UBLOX::FIX_NONE){
-            next_fix = AP_GPS::NO_FIX;
-        }else if(_buffer.pvt.fix_type == AP_GPS_UBLOX::FIX_2D){
-            next_fix = AP_GPS::GPS_OK_FIX_2D;
-        }else if(_buffer.pvt.fix_type == AP_GPS_UBLOX::FIX_3D){
-            next_fix = AP_GPS::GPS_OK_FIX_3D;
-            if((_buffer.pvt.flags & NAV_PVT_RTK_FIX) != 0){
-                next_fix = AP_GPS::GPS_OK_FIX_3D_RTK;
-            }else if((_buffer.pvt.flags & NAV_PVT_RTK_FLOAT) != 0){
-                next_fix = AP_GPS::GPS_OK_FIX_3D_DGPS;
+        if(_buffer.pvt.fix_type & NAV_PVT_FIX_VALID){
+            if(_buffer.pvt.fix_type == AP_GPS_UBLOX::FIX_3D){
+                if((_buffer.pvt.flags & NAV_PVT_RTK_FIX) != 0){
+                    next_fix = AP_GPS::GPS_OK_FIX_3D_RTK;
+                }else if((_buffer.pvt.flags & NAV_PVT_RTK_FLOAT) != 0){
+                    next_fix = AP_GPS::GPS_OK_FIX_3D_DGPS;
+                }else{
+                    next_fix = AP_GPS::GPS_OK_FIX_3D;
+                }
+            }else if( _buffer.pvt.fix_type == AP_GPS_UBLOX::FIX_2D) {
+                next_fix = AP_GPS::GPS_OK_FIX_2D;
+            }else{
+                next_fix = AP_GPS::NO_FIX;
+                state.status = AP_GPS::NO_FIX;
             }
+        }else{
+            next_fix = AP_GPS::NO_FIX;
         }
         break;
     case MSG_VELNED:

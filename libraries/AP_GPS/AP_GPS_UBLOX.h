@@ -471,6 +471,9 @@ private:
         NAV_STATUS_FIX_VALID = 1,
         NAV_STATUS_DGPS_USED = 2
     };
+    enum ubx_nav_pvt_status {
+        NAV_PVT_FIX_VALID = 1
+    };
     enum ubx_nav_pvt_flags {
         NAV_PVT_RTK_FLOAT = 0x40,
         NAV_PVT_RTK_FIX = 0x80
