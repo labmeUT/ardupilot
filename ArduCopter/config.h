@@ -1,4 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 //
 #pragma once
 
@@ -297,9 +296,9 @@
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
-//	EPM cargo gripper
-#ifndef EPM_ENABLED
- # define EPM_ENABLED ENABLED
+//	gripper
+#ifndef GRIPPER_ENABLED
+ # define GRIPPER_ENABLED ENABLED
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
@@ -443,8 +442,16 @@
  #define ACRO_BALANCE_PITCH         1.0f
 #endif
 
-#ifndef ACRO_EXPO_DEFAULT
- #define ACRO_EXPO_DEFAULT          0.3f
+#ifndef ACRO_RP_EXPO_DEFAULT
+ #define ACRO_RP_EXPO_DEFAULT       0.3f
+#endif
+
+#ifndef ACRO_Y_EXPO_DEFAULT
+ #define ACRO_Y_EXPO_DEFAULT        0.0f
+#endif
+
+#ifndef ACRO_THR_MID_DEFAULT
+ #define ACRO_THR_MID_DEFAULT       0.0f
 #endif
 
 // RTL Mode
@@ -501,8 +508,8 @@
 //////////////////////////////////////////////////////////////////////////////
 // Stabilize Rate Control
 //
-#ifndef ROLL_PITCH_INPUT_MAX
- # define ROLL_PITCH_INPUT_MAX      4500            // roll, pitch input range
+#ifndef ROLL_PITCH_YAW_INPUT_MAX
+ # define ROLL_PITCH_YAW_INPUT_MAX      4500        // roll, pitch and yaw input range
 #endif
 #ifndef DEFAULT_ANGLE_MAX
  # define DEFAULT_ANGLE_MAX         4500            // ANGLE_MAX parameters default value

@@ -1,4 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,7 +125,7 @@ bool AP_Arming::airspeed_checks(bool report)
     if ((checks_to_perform & ARMING_CHECK_ALL) ||
         (checks_to_perform & ARMING_CHECK_AIRSPEED)) {
         const AP_Airspeed *airspeed = ahrs.get_airspeed();
-        if (airspeed == NULL) {
+        if (airspeed == nullptr) {
             // not an airspeed capable vehicle
             return true;
         }

@@ -1,5 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 //
 // Simple test for the AP_AHRS interface
 //
@@ -42,7 +40,7 @@ void setup(void)
     } else {
         hal.console->printf("No compass detected\n");
     }
-    gps.init(NULL, serial_manager);
+    gps.init(nullptr, serial_manager);
 }
 
 void loop(void)

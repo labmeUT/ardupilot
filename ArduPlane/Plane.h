@@ -1,4 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
    Lead developer: Andrew Tridgell & Tom Pittenger
 
@@ -44,6 +43,7 @@
 #include <AP_AccelCal/AP_AccelCal.h>                // interface and maths for accelerometer calibration
 #include <AP_AHRS/AP_AHRS.h>         // ArduPilot Mega DCM Library
 #include <RC_Channel/RC_Channel.h>     // RC Channel Library
+#include <RC_Channel/SRV_Channel.h>
 #include <AP_RangeFinder/AP_RangeFinder.h>     // Range finder library
 #include <Filter/Filter.h>                     // Filter library
 #include <AP_Buffer/AP_Buffer.h>      // APM FIFO Buffer
@@ -52,6 +52,7 @@
 #include <AP_Airspeed/AP_Airspeed.h>
 #include <AP_Terrain/AP_Terrain.h>
 #include <AP_RPM/AP_RPM.h>
+#include <AP_Stats/AP_Stats.h>     // statistics library
 
 #include <AP_AdvancedFailsafe/AP_AdvancedFailsafe.h>
 #include <APM_Control/APM_Control.h>
@@ -229,6 +230,7 @@ private:
         uint32_t last_correction_time_ms;
         uint8_t in_range_count;
         float height_estimate;
+        float last_distance;
     } rangefinder_state;
 #endif
 
@@ -421,6 +423,11 @@ private:
     AP_Frsky_Telem frsky_telemetry {ahrs, battery, rangefinder};
 #endif
 
+    // Variables for extended status MAVLink messages
+    uint32_t control_sensors_present;
+    uint32_t control_sensors_enabled;
+    uint32_t control_sensors_health;
+ 
     // Airspeed Sensors
     AP_Airspeed airspeed;
 
@@ -773,6 +780,14 @@ private:
         uint32_t last_log_dropped;
     } perf;
 
+    struct {
+        uint32_t last_trim_check;
+        uint32_t last_trim_save;
+    } auto_trim;
+
+    // last time home was updated while disarmed
+    uint32_t last_home_update_ms;
+    
     // Camera/Antenna mount tracking and stabilisation stuff
 #if MOUNT == ENABLED
     // current_loc uses the baro/gps soloution for altitude rather than gps only.
@@ -786,8 +801,6 @@ private:
 
     static const AP_Scheduler::Task scheduler_tasks[];
     static const AP_Param::Info var_info[];
-
-    bool demoing_servos = false;
 
     // use this to prevent recursion during sensor init
     bool in_mavlink_delay = false;
@@ -816,6 +829,7 @@ private:
     void send_heartbeat(mavlink_channel_t chan);
     void send_attitude(mavlink_channel_t chan);
     void send_fence_status(mavlink_channel_t chan);
+    void update_sensor_status_flags(void);
     void send_extended_status1(mavlink_channel_t chan);
     void send_location(mavlink_channel_t chan);
     void send_nav_controller_output(mavlink_channel_t chan);
@@ -976,6 +990,7 @@ private:
     void read_receiver_rssi(void);
     void rpm_update(void);
     void button_update(void);
+    void stats_update();
     void ice_update(void);
     void report_radio();
     void report_ins();
@@ -1039,6 +1054,14 @@ private:
     void stabilize();
     void set_servos_idle(void);
     void set_servos();
+    void set_servos_manual_passthrough(void);
+    void set_servos_controlled(void);
+    void set_servos_old_elevons(void);
+    void set_servos_flaps(void);
+    void servo_output_mixers(void);
+    void servos_output(void);
+    void servos_auto_trim(void);
+    void throttle_watt_limiter(int8_t &min_throttle, int8_t &max_throttle);
     bool allow_reverse_thrust(void);
     void update_aux();
     void update_is_flying_5Hz(void);

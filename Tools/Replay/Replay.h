@@ -1,4 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -143,6 +142,7 @@ private:
     uint16_t downsample = 0;
     bool logmatch = false;
     uint32_t output_counter = 0;
+    uint64_t last_timestamp = 0;
 
     struct {
         float max_roll_error;
@@ -177,6 +177,7 @@ private:
     bool parse_param_line(char *line, char **vname, float &value);
     void load_param_file(const char *filename);
     void set_signal_handlers(void);
+    void flush_and_exit();
 };
 
 enum {

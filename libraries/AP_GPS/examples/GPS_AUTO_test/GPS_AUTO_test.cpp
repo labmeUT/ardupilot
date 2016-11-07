@@ -1,4 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 //
 // Test for AP_GPS_AUTO
 //
@@ -59,7 +58,7 @@ void setup()
 
     // Initialize the UART for GPS system
     serial_manager.init();
-    gps.init(NULL, serial_manager);
+    gps.init(nullptr, serial_manager);
 }
 
 void loop()

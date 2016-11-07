@@ -1,5 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 #include "Copter.h"
 #include "version.h"
 
@@ -52,7 +50,7 @@ void Copter::run_cli(AP_HAL::UARTDriver *port)
     port->set_blocking_writes(true);
 
     // disable the mavlink delay callback
-    hal.scheduler->register_delay_callback(NULL, 5);
+    hal.scheduler->register_delay_callback(nullptr, 5);
 
     // disable main_loop failsafe
     failsafe_disable();
@@ -110,8 +108,14 @@ void Copter::init_ardupilot()
     // load parameters from EEPROM
     load_parameters();
 
+    // initialise stats module
+    g2.stats.init();
+
     GCS_MAVLINK::set_dataflash(&DataFlash);
 
+    // identify ourselves correctly with the ground station
+    mavlink_system.sysid = g.sysid_this_mav;
+    
     // initialise serial ports
     serial_manager.init();
 
@@ -124,9 +128,9 @@ void Copter::init_ardupilot()
     
     BoardConfig.init();
 
-    // init EPM cargo gripper
-#if EPM_ENABLED == ENABLED
-    epm.init();
+    // init cargo gripper
+#if GRIPPER_ENABLED == ENABLED
+    g2.gripper.init();
 #endif
 
     // initialise notify system
@@ -157,9 +161,6 @@ void Copter::init_ardupilot()
                          FRAME_MAV_TYPE,
                          &g.fs_batt_voltage, &g.fs_batt_mah, &ap.value);
 #endif
-
-    // identify ourselves correctly with the ground station
-    mavlink_system.sysid = g.sysid_this_mav;
 
 #if LOGGING_ENABLED == ENABLED
     log_init();
@@ -230,10 +231,10 @@ void Copter::init_ardupilot()
     if (g.cli_enabled) {
         const char *msg = "\nPress ENTER 3 times to start interactive setup\n";
         cliSerial->println(msg);
-        if (gcs[1].initialised && (gcs[1].get_uart() != NULL)) {
+        if (gcs[1].initialised && (gcs[1].get_uart() != nullptr)) {
             gcs[1].get_uart()->println(msg);
         }
-        if (num_gcs > 2 && gcs[2].initialised && (gcs[2].get_uart() != NULL)) {
+        if (num_gcs > 2 && gcs[2].initialised && (gcs[2].get_uart() != nullptr)) {
             gcs[2].get_uart()->println(msg);
         }
     }

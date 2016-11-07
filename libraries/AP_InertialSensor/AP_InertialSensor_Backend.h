@@ -1,4 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -136,7 +135,7 @@ protected:
 
     // access to frontend dataflash
     DataFlash_Class *get_dataflash(void) const {
-        return _imu._log_raw_data? _imu._dataflash : NULL;
+        return _imu._log_raw_data? _imu._dataflash : nullptr;
     }
 
     // common gyro update function for all backends

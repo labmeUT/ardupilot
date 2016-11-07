@@ -1,5 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 #include "OpticalFlow.h"
 #include "AP_OpticalFlow_Onboard.h"
 
@@ -37,6 +35,25 @@ const AP_Param::GroupInfo OpticalFlow::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("_ORIENT_YAW", 3,  OpticalFlow,    _yawAngle_cd,   0),
 
+    // @Param: _POS_X
+    // @DisplayName:  X position offset
+    // @Description: X position of the optical flow sensor focal point in body frame. Positive X is forward of the origin.
+    // @Units: m
+    // @User: Advanced
+
+    // @Param: _POS_Y
+    // @DisplayName: Y position offset
+    // @Description: Y position of the optical flow sensor focal point in body frame. Positive Y is to the right of the origin.
+    // @Units: m
+    // @User: Advanced
+
+    // @Param: _POS_Z
+    // @DisplayName: Z position offset
+    // @Description: Z position of the optical flow sensor focal point in body frame. Positive Z is down from the origin.
+    // @Units: m
+    // @User: Advanced
+    AP_GROUPINFO("_POS", 4, OpticalFlow, _pos_offset, 0.0f),
+
     AP_GROUPEND
 };
 
@@ -70,7 +87,7 @@ void OpticalFlow::init(void)
 #endif
     }
 
-    if (backend != NULL) {
+    if (backend != nullptr) {
         backend->init();
     } else {
         _enabled = 0;
@@ -79,7 +96,7 @@ void OpticalFlow::init(void)
 
 void OpticalFlow::update(void)
 {
-    if (backend != NULL) {
+    if (backend != nullptr) {
         backend->update();
     }
     // only healthy if the data is less than 0.5s old

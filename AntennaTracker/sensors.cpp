@@ -1,5 +1,3 @@
-// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 #include "Tracker.h"
 
 void Tracker::init_barometer(bool full_calibration)
@@ -44,7 +42,7 @@ void Tracker::update_compass(void)
             DataFlash.Log_Write_Compass(compass);
         }
     } else {
-        ahrs.set_compass(NULL);
+        ahrs.set_compass(nullptr);
     }
 }
 
