@@ -1,4 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
  * Copyright (C) 2015  Intel Corporation. All rights reserved.
  *
@@ -117,6 +116,10 @@ SPIDesc SPIDeviceManager::_device[] = {
 SPIDesc SPIDeviceManager::_device[] = {
     SPIDesc("mpu9250", 0, 0, SPI_MODE_0, 8, RPI_GPIO_7, 1*MHZ,   20*MHZ),
     SPIDesc("ublox",   0, 0, SPI_MODE_0, 8, RPI_GPIO_8, 250*KHZ, 5*MHZ),
+};
+#elif CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_DARK
+SPIDesc SPIDeviceManager::_device[] = {
+    SPIDesc("mpu9250", 0, 1, SPI_MODE_0, 8, SPI_CS_KERNEL,  1*MHZ, 20*MHZ),
 };
 #elif CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_BEBOP || CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_DISCO
 SPIDesc SPIDeviceManager::_device[] = {
@@ -475,6 +478,19 @@ void SPIDeviceManager::_unregister(SPIBus &b)
             delete &b;
             break;
         }
+    }
+}
+
+void SPIDeviceManager::teardown()
+{
+    for (auto it = _buses.begin(); it != _buses.end(); it++) {
+        /* Try to stop thread - it may not even be started yet */
+        (*it)->thread.stop();
+    }
+
+    for (auto it = _buses.begin(); it != _buses.end(); it++) {
+        /* Try to join thread - failing is normal if thread was not started */
+        (*it)->thread.join();
     }
 }
 

@@ -1,5 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 #include <AP_HAL/AP_HAL.h>
 
 #if HAL_CPU_CLASS >= HAL_CPU_CLASS_150
@@ -305,8 +303,17 @@ void NavEKF2_core::FuseOptFlow()
         // calculate range from ground plain to centre of sensor fov assuming flat earth
         float range = constrain_float((heightAboveGndEst/prevTnb.c.z),rngOnGnd,1000.0f);
 
-        // calculate relative velocity in sensor frame
-        relVelSensor = prevTnb*stateStruct.velocity;
+        // correct range for flow sensor offset body frame position offset
+        // the corrected value is the predicted range from the sensor focal point to the
+        // centre of the image on the ground assuming flat terrain
+        Vector3f posOffsetBody = (*ofDataDelayed.body_offset) - accelPosOffset;
+        if (!posOffsetBody.is_zero()) {
+            Vector3f posOffsetEarth = prevTnb.mul_transpose(posOffsetBody);
+            range -= posOffsetEarth.z / prevTnb.c.z;
+        }
+
+        // calculate relative velocity in sensor frame including the relative motion due to rotation
+        relVelSensor = prevTnb*stateStruct.velocity + ofDataDelayed.bodyRadXYZ % posOffsetBody;
 
         // divide velocity by range  to get predicted angular LOS rates relative to X and Y axes
         losPred[0] =  relVelSensor.y/range;

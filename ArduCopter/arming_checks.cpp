@@ -1,5 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 #include "Copter.h"
 
 // performs pre-arm checks. expects to be called at 1hz.
@@ -380,7 +378,7 @@ bool Copter::parameter_checks(bool display_failure)
 
         #if PROXIMITY_ENABLED == ENABLED
         // check proximity sensor if enabled
-        if (copter.proximity.get_status() == AP_Proximity::Proximity_NoData) {
+        if (copter.g2.proximity.get_status() == AP_Proximity::Proximity_NoData) {
             if (display_failure) {
                 gcs_send_text(MAV_SEVERITY_CRITICAL,"PreArm: check proximity sensor");
             }
@@ -654,6 +652,14 @@ bool Copter::arm_checks(bool display_failure, bool arming_from_gcs)
     if (!ahrs.healthy()) {
         if (display_failure) {
             gcs_send_text(MAV_SEVERITY_CRITICAL,"Arm: Waiting for Nav Checks");
+        }
+        return false;
+    }
+
+    // check compass health
+    if (!compass.healthy()) {
+        if (display_failure) {
+            gcs_send_text(MAV_SEVERITY_CRITICAL,"Arm: Compass not healthy");
         }
         return false;
     }

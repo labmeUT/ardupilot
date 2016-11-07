@@ -1,4 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 #pragma once
 
 #include <AP_Common/AP_Common.h>
@@ -314,8 +313,8 @@ protected:
     const AP_AHRS&          _ahrs;
     AC_PosControl&          _pos_control;
     const AC_AttitudeControl& _attitude_control;
-    AP_Terrain              *_terrain = NULL;
-    AC_Avoid                *_avoid = NULL;
+    AP_Terrain              *_terrain = nullptr;
+    AC_Avoid                *_avoid = nullptr;
 
     // parameters
     AP_Float    _loiter_speed_cms;      // maximum horizontal speed in cm/s while in loiter

@@ -1,4 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 #include <AP_HAL/AP_HAL.h>
 #include "AC_PrecLand.h"
 #include "AC_PrecLand_Backend.h"
@@ -61,7 +60,7 @@ AC_PrecLand::AC_PrecLand(const AP_AHRS& ahrs, const AP_InertialNav& inav) :
     _inav(inav),
     _last_update_ms(0),
     _last_backend_los_meas_ms(0),
-    _backend(NULL)
+    _backend(nullptr)
 {
     // set parameters to defaults
     AP_Param::setup_object_defaults(this, var_info);
@@ -75,12 +74,12 @@ AC_PrecLand::AC_PrecLand(const AP_AHRS& ahrs, const AP_InertialNav& inav) :
 void AC_PrecLand::init()
 {
     // exit immediately if init has already been run
-    if (_backend != NULL) {
+    if (_backend != nullptr) {
         return;
     }
 
     // default health to false
-    _backend = NULL;
+    _backend = nullptr;
     _backend_state.healthy = false;
 
     // instantiate backend based on type parameter
@@ -102,7 +101,7 @@ void AC_PrecLand::init()
     }
 
     // init backend
-    if (_backend != NULL) {
+    if (_backend != nullptr) {
         _backend->init();
     }
 }
@@ -113,7 +112,7 @@ void AC_PrecLand::update(float rangefinder_alt_cm, bool rangefinder_alt_valid)
     _attitude_history.push_back(_ahrs.get_rotation_body_to_ned());
     
     // run backend update
-    if (_backend != NULL && _enabled) {
+    if (_backend != nullptr && _enabled) {
         // read from sensor
         _backend->update();
 
@@ -229,7 +228,7 @@ bool AC_PrecLand::get_target_velocity_relative_cms(Vector2f& ret) const
 void AC_PrecLand::handle_msg(mavlink_message_t* msg)
 {
     // run backend update
-    if (_backend != NULL) {
+    if (_backend != nullptr) {
         _backend->handle_msg(msg);
     }
 }

@@ -1,4 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 /*
    Please contribute your ideas! See http://dev.ardupilot.org for details
 
@@ -96,7 +95,7 @@ public:
 
     // find_serial - searches available serial ports that allows the given protocol
     //  instance should be zero if searching for the first instance, 1 for the second, etc
-    //  returns uart on success, NULL if a serial port cannot be found
+    //  returns uart on success, nullptr if a serial port cannot be found
     AP_HAL::UARTDriver *find_serial(enum SerialProtocol protocol, uint8_t instance) const;
 
     // find_baudrate - searches available serial ports for the first instance that allows the given protocol

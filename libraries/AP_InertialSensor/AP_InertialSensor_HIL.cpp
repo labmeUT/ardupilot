@@ -1,5 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 #include <AP_HAL/AP_HAL.h>
 #include "AP_InertialSensor_HIL.h"
 
@@ -16,12 +14,12 @@ AP_InertialSensor_HIL::AP_InertialSensor_HIL(AP_InertialSensor &imu) :
 AP_InertialSensor_Backend *AP_InertialSensor_HIL::detect(AP_InertialSensor &_imu)
 {
     AP_InertialSensor_HIL *sensor = new AP_InertialSensor_HIL(_imu);
-    if (sensor == NULL) {
-        return NULL;
+    if (sensor == nullptr) {
+        return nullptr;
     }
     if (!sensor->_init_sensor()) {
         delete sensor;
-        return NULL;
+        return nullptr;
     }
     return sensor;
 }

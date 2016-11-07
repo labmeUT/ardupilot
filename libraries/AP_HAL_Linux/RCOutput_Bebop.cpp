@@ -301,7 +301,7 @@ void RCOutput_Bebop::init()
     pthread_condattr_t cond_attr;
 
     /* Initialize thread, cond, and mutex */
-    ret = pthread_mutex_init(&_mutex, NULL);
+    ret = pthread_mutex_init(&_mutex, nullptr);
     if (ret != 0) {
         perror("RCout_Bebop: failed to init mutex\n");
         return;
@@ -419,7 +419,7 @@ void* RCOutput_Bebop::_control_thread(void *arg) {
     RCOutput_Bebop* rcout = (RCOutput_Bebop *) arg;
 
     rcout->_run_rcout();
-    return NULL;
+    return nullptr;
 }
 
 void RCOutput_Bebop::_run_rcout()
@@ -448,7 +448,7 @@ void RCOutput_Bebop::_run_rcout()
      * keep current order. The order changes from version 2 on bebop 1 and
      * remains the same as this for bebop 2
      */
-    if (info.version_maj == 1 || info.version_maj == 5) {
+    if (info.version_maj == 1) {
         bebop_bldc_right_front = BEBOP_BLDC_MOTOR_1;
         bebop_bldc_left_front  = BEBOP_BLDC_MOTOR_2;
         bebop_bldc_left_back   = BEBOP_BLDC_MOTOR_3;

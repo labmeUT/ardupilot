@@ -1,5 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 #include "Copter.h"
 
 // start_command - this function will be called when the ap_mission lib wishes to start a new command
@@ -134,8 +132,8 @@ bool Copter::start_command(const AP_Mission::Mission_Command& cmd)
         break;
 #endif
 
-#if EPM_ENABLED == ENABLED
-    case MAV_CMD_DO_GRIPPER:                            // Mission command to control EPM gripper
+#if GRIPPER_ENABLED == ENABLED
+    case MAV_CMD_DO_GRIPPER:                            // Mission command to control gripper
         do_gripper(cmd);
         break;
 #endif
@@ -573,19 +571,19 @@ void Copter::do_parachute(const AP_Mission::Mission_Command& cmd)
 }
 #endif
 
-#if EPM_ENABLED == ENABLED
-// do_gripper - control EPM gripper
+#if GRIPPER_ENABLED == ENABLED
+// do_gripper - control gripper
 void Copter::do_gripper(const AP_Mission::Mission_Command& cmd)
 {
     // Note: we ignore the gripper num parameter because we only support one gripper
     switch (cmd.content.gripper.action) {
         case GRIPPER_ACTION_RELEASE:
-            epm.release();
-            Log_Write_Event(DATA_EPM_RELEASE);
+            g2.gripper.release();
+            Log_Write_Event(DATA_GRIPPER_RELEASE);
             break;
         case GRIPPER_ACTION_GRAB:
-            epm.grab();
-            Log_Write_Event(DATA_EPM_GRAB);
+            g2.gripper.grab();
+            Log_Write_Event(DATA_GRIPPER_GRAB);
             break;
         default:
             // do nothing

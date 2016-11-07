@@ -1,5 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 #include <AP_HAL/AP_HAL.h>
 
 #if CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_QFLIGHT
@@ -21,12 +19,12 @@ AP_InertialSensor_QFLIGHT::AP_InertialSensor_QFLIGHT(AP_InertialSensor &imu) :
 AP_InertialSensor_Backend *AP_InertialSensor_QFLIGHT::detect(AP_InertialSensor &_imu)
 {
     AP_InertialSensor_QFLIGHT *sensor = new AP_InertialSensor_QFLIGHT(_imu);
-    if (sensor == NULL) {
-        return NULL;
+    if (sensor == nullptr) {
+        return nullptr;
     }
     if (!sensor->init_sensor()) {
         delete sensor;
-        return NULL;
+        return nullptr;
     }
     return sensor;
 }

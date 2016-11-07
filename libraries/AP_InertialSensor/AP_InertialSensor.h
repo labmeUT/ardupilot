@@ -1,4 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
 #pragma once
 
 // Gyro and Accelerometer calibration criteria
@@ -141,6 +140,14 @@ public:
     // get accel scale
     const Vector3f &get_accel_scale(uint8_t i) const { return _accel_scale[i]; }
     const Vector3f &get_accel_scale(void) const { return get_accel_scale(_primary_accel); }
+
+    // return a 3D vector defining the position offset of the IMU accelerometer in metres relative to the body frame origin
+    const Vector3f &get_imu_pos_offset(uint8_t instance) const {
+        return _accel_pos[instance];
+    }
+    const Vector3f &get_imu_pos_offset(void) const {
+        return _accel_pos[_primary_accel];
+    }
 
     // return the temperature if supported. Zero is returned if no
     // temperature is available
@@ -319,6 +326,9 @@ private:
     AP_Vector3f _accel_offset[INS_MAX_INSTANCES];
     AP_Vector3f _gyro_offset[INS_MAX_INSTANCES];
 
+    // accelerometer position offset in body frame
+    AP_Vector3f _accel_pos[INS_MAX_INSTANCES];
+
     // accelerometer max absolute offsets to be used for calibration
     float _accel_max_abs_offsets[INS_MAX_INSTANCES];
 
@@ -417,7 +427,7 @@ private:
     void _acal_event_failure();
 
     // Returns AccelCalibrator objects pointer for specified acceleromter
-    AccelCalibrator* _acal_get_calibrator(uint8_t i) { return i<get_accel_count()?&(_accel_calibrator[i]):NULL; }
+    AccelCalibrator* _acal_get_calibrator(uint8_t i) { return i<get_accel_count()?&(_accel_calibrator[i]):nullptr; }
 
     float _trim_pitch;
     float _trim_roll;

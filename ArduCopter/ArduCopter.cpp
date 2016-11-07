@@ -1,5 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 /*
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,8 +132,8 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
     SCHED_TASK(afs_fs_check,          10,    100),
 #endif
     SCHED_TASK(terrain_update,        10,    100),
-#if EPM_ENABLED == ENABLED
-    SCHED_TASK(epm_update,            10,     75),
+#if GRIPPER_ENABLED == ENABLED
+    SCHED_TASK(gripper_update,        10,     75),
 #endif
 #ifdef USERHOOK_FASTLOOP
     SCHED_TASK(userhook_FastLoop,    100,     75),
@@ -153,6 +151,7 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
     SCHED_TASK(userhook_SuperSlowLoop, 1,   75),
 #endif
     SCHED_TASK(button_update,          5,    100),
+    SCHED_TASK(stats_update,           1,    100),
 };
 
 
@@ -207,6 +206,14 @@ void Copter::perf_update(void)
     }
     perf_info_reset();
     pmTest1 = 0;
+}
+
+/*
+  update AP_Stats
+ */
+void Copter::stats_update(void)
+{
+    g2.stats.update();
 }
 
 void Copter::loop()
@@ -404,8 +411,7 @@ void Copter::ten_hz_logging_loop()
 #endif
 }
 
-// fifty_hz_logging_loop
-// should be run at 50hz
+// twentyfive_hz_logging - should be run at 25hz
 void Copter::twentyfive_hz_logging()
 {
 #if HIL_MODE != HIL_MODE_DISABLED
@@ -505,6 +511,12 @@ void Copter::one_hz_loop()
     terrain_logging();
 
     adsb.set_is_flying(!ap.land_complete);
+    
+    // update error mask of sensors and subsystems. The mask uses the
+    // MAV_SYS_STATUS_* values from mavlink. If a bit is set then it
+    // indicates that the sensor or subsystem is present but not
+    // functioning correctly
+    update_sensor_status_flags();
 }
 
 // called at 50hz

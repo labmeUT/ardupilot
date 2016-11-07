@@ -1,5 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 #include "Copter.h"
 
 #if AUTOTUNE_ENABLED == ENABLED
@@ -44,7 +42,7 @@
 #define AUTOTUNE_AXIS_BITMASK_YAW             4
 
 #define AUTOTUNE_PILOT_OVERRIDE_TIMEOUT_MS  500     // restart tuning if pilot has left sticks in middle for 2 seconds
-#define AUTOTUNE_TESTING_STEP_TIMEOUT_MS    750     // timeout for tuning mode's testing step
+#define AUTOTUNE_TESTING_STEP_TIMEOUT_MS   1000     // timeout for tuning mode's testing step
 #define AUTOTUNE_LEVEL_ANGLE_CD             300     // angle which qualifies as level
 #define AUTOTUNE_LEVEL_RATE_RP_CD          1000     // rate which qualifies as level for roll and pitch
 #define AUTOTUNE_LEVEL_RATE_Y_CD            750     // rate which qualifies as level for yaw
@@ -246,8 +244,10 @@ bool Copter::autotune_start(bool ignore_checks)
     pos_control.set_accel_z(g.pilot_accel_z);
 
     // initialise position and desired velocity
-    pos_control.set_alt_target(inertial_nav.get_altitude());
-    pos_control.set_desired_velocity_z(inertial_nav.get_velocity_z());
+    if (!pos_control.is_active_z()) {
+        pos_control.set_alt_target_to_current_alt();
+        pos_control.set_desired_velocity_z(inertial_nav.get_velocity_z());
+    }
 
     return true;
 }

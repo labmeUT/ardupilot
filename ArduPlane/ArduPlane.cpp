@@ -1,5 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 /*
    Lead developer: Andrew Tridgell
  
@@ -84,7 +82,17 @@ const AP_Scheduler::Task Plane::scheduler_tasks[] = {
     SCHED_TASK(dataflash_periodic,     50,    400),
     SCHED_TASK(avoidance_adsb_update,  10,    100),
     SCHED_TASK(button_update,           5,    100),
+    SCHED_TASK(stats_update,            1,    100),
 };
+
+/*
+  update AP_Stats
+ */
+void Plane::stats_update(void)
+{
+    g2.stats.update();
+}
+
 
 void Plane::setup() 
 {
@@ -228,7 +236,7 @@ void Plane::update_compass(void)
             DataFlash.Log_Write_Compass(compass);
         }
     } else {
-        ahrs.set_compass(NULL);
+        ahrs.set_compass(nullptr);
     }
 }
 
@@ -337,6 +345,24 @@ void Plane::one_second_loop()
 #endif
 
     ins.set_raw_logging(should_log(MASK_LOG_IMU_RAW));
+
+    // update home position if soft armed and gps position has
+    // changed. Update every 5s at most
+    if (!hal.util->get_soft_armed() &&
+        gps.last_message_time_ms() - last_home_update_ms > 5000 &&
+        gps.status() >= AP_GPS::GPS_OK_FIX_3D) {
+            last_home_update_ms = gps.last_message_time_ms();
+            update_home();
+            
+            // reset the landing altitude correction
+            auto_state.land_alt_offset = 0;
+    }
+    
+    // update error mask of sensors and subsystems. The mask uses the
+    // MAV_SYS_STATUS_* values from mavlink. If a bit is set then it
+    // indicates that the sensor or subsystem is present but not
+    // functioning correctly
+    update_sensor_status_flags();
 }
 
 void Plane::log_perf_info()
@@ -480,13 +506,6 @@ void Plane::update_GPS_10Hz(void)
             do_take_picture();
         }
 #endif        
-
-        if (!hal.util->get_soft_armed()) {
-            update_home();
-
-            // reset the landing altitude correction
-            auto_state.land_alt_offset = 0;
-        }
 
         // update wind estimate
         ahrs.estimate_wind();
@@ -1013,7 +1032,8 @@ void Plane::update_optical_flow(void)
         uint8_t flowQuality = optflow.quality();
         Vector2f flowRate = optflow.flowRate();
         Vector2f bodyRate = optflow.bodyRate();
-        ahrs.writeOptFlowMeas(flowQuality, flowRate, bodyRate, last_of_update);
+        const Vector3f &posOffset = optflow.get_pos_offset();
+        ahrs.writeOptFlowMeas(flowQuality, flowRate, bodyRate, last_of_update, posOffset);
         Log_Write_Optflow();
     }
 }
