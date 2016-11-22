@@ -533,12 +533,6 @@ void GCS_MAVLINK_Tracker::handleMessage(mavlink_message_t* msg)
         break;
     }
 
-    case MAVLINK_MSG_ID_PARAM_REQUEST_READ:
-    {
-        handle_param_request_read(msg);
-        break;
-    }
-
     case MAVLINK_MSG_ID_PARAM_SET:
     {
         handle_param_set(msg, nullptr);
@@ -684,6 +678,14 @@ void GCS_MAVLINK_Tracker::handleMessage(mavlink_message_t* msg)
             case MAV_CMD_DO_ACCEPT_MAG_CAL:
             case MAV_CMD_DO_CANCEL_MAG_CAL:
                 result = tracker.compass.handle_mag_cal_command(packet);
+                break;
+
+            case MAV_CMD_ACCELCAL_VEHICLE_POS:
+                result = MAV_RESULT_FAILED;
+
+                if (tracker.ins.get_acal()->gcs_vehicle_position(packet.param1)) {
+                    result = MAV_RESULT_ACCEPTED;
+                }
                 break;
 
             default:
@@ -870,8 +872,8 @@ mission_failed:
         send_autopilot_version(FIRMWARE_VERSION);
         break;
 
-    case MAVLINK_MSG_ID_SETUP_SIGNING:
-        handle_setup_signing(msg);
+    default:
+        handle_common_message(msg);
         break;
     } // end switch
 } // end handle mavlink

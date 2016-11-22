@@ -33,12 +33,6 @@ protected:
 
     AP_HAL::OwnPtr<AP_HAL::Device> _dev;
 
-    /*
-     * Synchronize access to _accum between thread sampling the HW and main
-     * thread using the values
-     */
-    AP_HAL::Semaphore *_sem;
-
     /* Shared values between thread sampling the HW and main thread */
     struct {
         uint32_t s_D1;
@@ -49,7 +43,6 @@ protected:
 
     uint8_t _state;
     uint8_t _instance;
-    uint32_t _last_cmd_usec;
 
     /* Last compensated values from accumulated sample */
     float _D1, _D2;
@@ -58,6 +51,8 @@ protected:
     struct {
         uint16_t c1, c2, c3, c4, c5, c6;
     } _cal_reg;
+
+    bool _discard_next;
 };
 
 class AP_Baro_MS5611 : public AP_Baro_MS56XX

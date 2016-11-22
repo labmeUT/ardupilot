@@ -845,12 +845,6 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
         break;
     }
 
-    case MAVLINK_MSG_ID_PARAM_REQUEST_READ:         // MAV ID: 20
-    {
-        handle_param_request_read(msg);
-        break;
-    }
-
     case MAVLINK_MSG_ID_PARAM_REQUEST_LIST:         // MAV ID: 21
     {
         // mark the firmware version in the tlog
@@ -1504,6 +1498,14 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
             break;
         }
 
+        case MAV_CMD_ACCELCAL_VEHICLE_POS:
+            result = MAV_RESULT_FAILED;
+
+            if (copter.ins.get_acal()->gcs_vehicle_position(packet.param1)) {
+                result = MAV_RESULT_ACCEPTED;
+            }
+            break;
+
         default:
             result = MAV_RESULT_UNSUPPORTED;
             break;
@@ -1816,7 +1818,6 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
 
 #if PRECISION_LANDING == ENABLED
     case MAVLINK_MSG_ID_LANDING_TARGET:
-        // configure or release parachute
         result = MAV_RESULT_ACCEPTED;
         copter.precland.handle_msg(msg);
         break;
@@ -1972,10 +1973,9 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
 #endif
         break;
 
-    case MAVLINK_MSG_ID_SETUP_SIGNING:
-        handle_setup_signing(msg);
+    default:
+        handle_common_message(msg);
         break;
-        
     }     // end switch
 } // end handle mavlink
 

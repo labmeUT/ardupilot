@@ -15,6 +15,7 @@
 #include "AP_Baro_MS5611.h"
 
 #include <utility>
+#include <stdio.h>
 
 #include <AP_Math/AP_Math.h>
 
@@ -40,11 +41,6 @@ static const uint8_t CMD_MS56XX_PROM = 0xA0;
 #define ADDR_CMD_CONVERT_D2_OSR2048 0x56
 #define ADDR_CMD_CONVERT_D2_OSR4096 0x58
 
-#define CONVERSION_TIME_OSR_4096   9.04 * USEC_PER_MSEC
-#define CONVERSION_TIME_OSR_2048   4.54 * USEC_PER_MSEC
-#define CONVERSION_TIME_OSR_1024   2.28 * USEC_PER_MSEC
-#define CONVERSION_TIME_OSR_0512   1.17 * USEC_PER_MSEC
-#define CONVERSION_TIME_OSR_0256   0.60 * USEC_PER_MSEC
 /*
   use an OSR of 1024 to reduce the self-heating effect of the
   sensor. Information from MS tells us that some individual sensors
@@ -53,7 +49,7 @@ static const uint8_t CMD_MS56XX_PROM = 0xA0;
  */
 static const uint8_t ADDR_CMD_CONVERT_PRESSURE = ADDR_CMD_CONVERT_D1_OSR1024;
 static const uint8_t ADDR_CMD_CONVERT_TEMPERATURE = ADDR_CMD_CONVERT_D2_OSR1024;
-static const uint32_t CONVERSION_TIME = CONVERSION_TIME_OSR_1024;
+
 /*
   constructor
  */
@@ -66,27 +62,23 @@ AP_Baro_MS56XX::AP_Baro_MS56XX(AP_Baro &baro, AP_HAL::OwnPtr<AP_HAL::Device> dev
 void AP_Baro_MS56XX::_init()
 {
     if (!_dev) {
-        AP_HAL::panic("AP_Baro_MS56XX: failed to use device");
+        printf("MS5611: no device available");
+        return;
     }
 
-    _sem = hal.util->new_semaphore();
-    if (!_sem) {
-        AP_HAL::panic("AP_Baro_MS56XX: failed to create semaphore");
-    }
-
-    _instance = _frontend.register_sensor();
-
-    if (!_dev->get_semaphore()->take(10)) {
+    if (!_dev->get_semaphore()->take(0)) {
         AP_HAL::panic("PANIC: AP_Baro_MS56XX: failed to take serial semaphore for init");
+    }
+
+    uint16_t prom[8];
+    if (!_read_prom(prom)) {
+        printf("MS5611: Can't read PROM on bus %d", _dev->get_bus_id());
+        _dev->get_semaphore()->give();
+        return;
     }
 
     _dev->transfer(&CMD_MS56XX_RESET, 1, nullptr, 0);
     hal.scheduler->delay(4);
-
-    uint16_t prom[8];
-    if (!_read_prom(prom)) {
-        AP_HAL::panic("Can't read PROM");
-    }
 
     // Save factory calibration coefficients
     _cal_reg.c1 = prom[1];
@@ -98,10 +90,11 @@ void AP_Baro_MS56XX::_init()
 
     // Send a command to read temperature first
     _dev->transfer(&ADDR_CMD_CONVERT_TEMPERATURE, 1, nullptr, 0);
-    _last_cmd_usec = AP_HAL::micros();
     _state = 0;
 
     memset(&_accum, 0, sizeof(_accum));
+
+    _instance = _frontend.register_sensor();
 
     _dev->get_semaphore()->give();
 
@@ -216,14 +209,6 @@ bool AP_Baro_MS5637::_read_prom(uint16_t prom[8])
 */
 bool AP_Baro_MS56XX::_timer(void)
 {
-    /*
-     * transfer is taking longer than it should or we got stuck by other
-     * sensors: skip one sample
-     */
-    if (AP_HAL::micros() - _last_cmd_usec < CONVERSION_TIME) {
-        return true;
-    }
-
     uint8_t next_cmd;
     uint8_t next_state;
     uint32_t adc_val = _read_adc();
@@ -240,12 +225,21 @@ bool AP_Baro_MS56XX::_timer(void)
 
     next_cmd = next_state == 0 ? ADDR_CMD_CONVERT_TEMPERATURE
                                : ADDR_CMD_CONVERT_PRESSURE;
-    _dev->transfer(&next_cmd, 1, nullptr, 0);
-
-    _last_cmd_usec = AP_HAL::micros();
+    if (!_dev->transfer(&next_cmd, 1, nullptr, 0)) {
+        return true;
+    }
 
     /* if we had a failed read we are all done */
     if (adc_val == 0) {
+        // a failed read can mean the returned value is corrupt, we
+        // must discard it
+        _discard_next = true;
+        return true;
+    }
+
+    if (_discard_next) {
+        _discard_next = false;
+        _state = next_state;
         return true;
     }
 
@@ -280,7 +274,7 @@ void AP_Baro_MS56XX::update()
     uint32_t sD1, sD2;
     uint8_t d1count, d2count;
 
-    if (!_sem->take(HAL_SEMAPHORE_BLOCK_FOREVER)) {
+    if (!_sem->take_nonblocking()) {
         return;
     }
 

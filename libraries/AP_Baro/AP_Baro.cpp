@@ -24,6 +24,7 @@
 #include <AP_Common/AP_Common.h>
 #include <AP_HAL/AP_HAL.h>
 #include <AP_Math/AP_Math.h>
+#include <AP_BoardConfig/AP_BoardConfig.h>
 
 #include "AP_Baro_BMP085.h"
 #include "AP_Baro_HIL.h"
@@ -291,8 +292,32 @@ void AP_Baro::init(void)
     }
 
 #if HAL_BARO_DEFAULT == HAL_BARO_PX4 || HAL_BARO_DEFAULT == HAL_BARO_VRBRAIN
-    drivers[0] = new AP_Baro_PX4(*this);
-    _num_drivers = 1;
+    if (AP_BoardConfig::get_board_type() == AP_BoardConfig::PX4_BOARD_PX4V1) {
+#ifdef HAL_BARO_MS5611_I2C_BUS
+        drivers[0] = new AP_Baro_MS5611(*this,
+                                        std::move(hal.i2c_mgr->get_device(HAL_BARO_MS5611_I2C_BUS, HAL_BARO_MS5611_I2C_ADDR)));
+        _num_drivers = 1;
+#endif
+    } else if (AP_BoardConfig::get_board_type() == AP_BoardConfig::PX4_BOARD_PIXHAWK ||
+               AP_BoardConfig::get_board_type() == AP_BoardConfig::PX4_BOARD_PHMINI ||
+               AP_BoardConfig::get_board_type() == AP_BoardConfig::PX4_BOARD_PH2SLIM) {
+        drivers[0] = new AP_Baro_MS5611(*this,
+                                        std::move(hal.spi->get_device(HAL_BARO_MS5611_NAME)));
+        _num_drivers = 1;
+    } else if (AP_BoardConfig::get_board_type() == AP_BoardConfig::PX4_BOARD_PIXHAWK2) {
+        drivers[0] = new AP_Baro_MS5611(*this,
+                                        std::move(hal.spi->get_device(HAL_BARO_MS5611_SPI_EXT_NAME)));
+        drivers[1] = new AP_Baro_MS5611(*this,
+                                        std::move(hal.spi->get_device(HAL_BARO_MS5611_NAME)));
+        _num_drivers = 2;
+    } else if (AP_BoardConfig::get_board_type() == AP_BoardConfig::PX4_BOARD_PIXRACER) {
+        drivers[0] = new AP_Baro_MS5611(*this,
+                                        std::move(hal.spi->get_device(HAL_BARO_MS5611_SPI_INT_NAME)));
+        _num_drivers = 1;
+    } else {
+        drivers[0] = new AP_Baro_PX4(*this);
+        _num_drivers = 1;
+    }
 #elif HAL_BARO_DEFAULT == HAL_BARO_HIL
     drivers[0] = new AP_Baro_HIL(*this);
     _num_drivers = 1;

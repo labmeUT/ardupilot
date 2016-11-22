@@ -51,7 +51,6 @@
 #include <signal.h>
 #include <unistd.h>
 #include <AP_HAL/utility/getopt_cpp.h>
-#include <AP_SerialManager/AP_SerialManager.h>
 
 class ReplayVehicle {
 public:
@@ -178,6 +177,8 @@ private:
     void load_param_file(const char *filename);
     void set_signal_handlers(void);
     void flush_and_exit();
+
+    FILE *xfopen(const char *f, const char *mode);
 };
 
 enum {

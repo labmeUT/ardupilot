@@ -1082,6 +1082,15 @@ void GCS_MAVLINK_Rover::handleMessage(mavlink_message_t* msg)
             break;
         }
 
+        case MAV_CMD_ACCELCAL_VEHICLE_POS:
+            result = MAV_RESULT_FAILED;
+
+            if (rover.ins.get_acal()->gcs_vehicle_position(packet.param1)) {
+                result = MAV_RESULT_ACCEPTED;
+            }
+            break;
+
+
         default:
                 break;
             }
@@ -1134,12 +1143,6 @@ void GCS_MAVLINK_Rover::handleMessage(mavlink_message_t* msg)
             handle_param_request_list(msg);
             break;
         }
-
-    case MAVLINK_MSG_ID_PARAM_REQUEST_READ:
-    {
-        handle_param_request_read(msg);
-        break;
-    }
 
     case MAVLINK_MSG_ID_MISSION_CLEAR_ALL:
         {
@@ -1431,10 +1434,6 @@ void GCS_MAVLINK_Rover::handleMessage(mavlink_message_t* msg)
         send_autopilot_version(FIRMWARE_VERSION);
         break;
 
-    case MAVLINK_MSG_ID_SETUP_SIGNING:
-        handle_setup_signing(msg);
-        break;
-
     case MAVLINK_MSG_ID_LED_CONTROL:
         // send message to Notify
         AP_Notify::handle_led_control(msg);
@@ -1444,6 +1443,11 @@ void GCS_MAVLINK_Rover::handleMessage(mavlink_message_t* msg)
         // send message to Notify
         AP_Notify::handle_play_tune(msg);
         break;
+
+    default:
+        handle_common_message(msg);
+        break;
+
     } // end switch
 } // end handle mavlink
 

@@ -1346,6 +1346,11 @@ void GCS_MAVLINK::send_statustext(MAV_SEVERITY severity, uint8_t dest_bitmask, c
         dataflash_p->Log_Write_Message(text);
     }
 
+    // add statustext message to FrSky lib queue
+    if (frsky_telemetry_p != NULL) {
+        frsky_telemetry_p->queue_message(severity, text);
+    }
+
     // filter destination ports to only allow active ports.
     statustext_t statustext{};
     statustext.bitmask = (mavlink_active | chan_is_streaming) & dest_bitmask;
@@ -1742,6 +1747,20 @@ void GCS_MAVLINK::send_collision_all(const AP_Avoidance::Obstacle &threat, MAV_C
     }
 }
 
+void GCS_MAVLINK::send_accelcal_vehicle_position(uint8_t position)
+{
+    if (HAVE_PAYLOAD_SPACE(chan, COMMAND_LONG)) {
+        mavlink_msg_command_long_send(
+            chan,
+            0,
+            0,
+            MAV_CMD_ACCELCAL_VEHICLE_POS,
+            0,
+            (float) position,
+            0, 0, 0, 0, 0, 0);
+    }
+}
+
 /*
   handle a MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN command 
 
@@ -1797,4 +1816,25 @@ uint8_t GCS_MAVLINK::handle_rc_bind(const mavlink_command_long_t &packet)
         return MAV_RESULT_FAILED;
     }
     return MAV_RESULT_ACCEPTED;
+}
+
+/*
+  handle messages which don't require vehicle specific data
+ */
+void GCS_MAVLINK::handle_common_message(mavlink_message_t *msg)
+{
+    switch (msg->msgid) {
+    case MAVLINK_MSG_ID_SETUP_SIGNING:
+        handle_setup_signing(msg);
+        break;
+    case MAVLINK_MSG_ID_PARAM_REQUEST_READ:
+        handle_param_request_read(msg);
+        break;
+    case MAVLINK_MSG_ID_DEVICE_OP_READ:
+        handle_device_op_read(msg);
+        break;
+    case MAVLINK_MSG_ID_DEVICE_OP_WRITE:
+        handle_device_op_write(msg);
+        break;
+    }
 }
