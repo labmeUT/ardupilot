@@ -66,7 +66,7 @@ bool Rover::auto_check_trigger(void) {
     work out if we are going to use pivot steering
 */
 bool Rover::use_pivot_steering(void) {
-    if (control_mode >= AUTO && g.skid_steer_out && g.pivot_turn_angle != 0) {
+    if (control_mode >= AUTO && g.pivot_turn_angle != 0) {
         int16_t bearing_error = wrap_180_cd(nav_controller->target_bearing_cd() - ahrs.yaw_sensor) / 100;
         if (abs(bearing_error) > g.pivot_turn_angle) {
             return true;
