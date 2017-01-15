@@ -1507,7 +1507,8 @@ void GCS_MAVLINK::send_opticalflow(AP_AHRS_NavEKF &ahrs, const OpticalFlow &optf
     float hagl = 0;
 
     if (ahrs.have_inertial_nav()) {
-        ahrs.get_NavEKF().getHAGL(hagl);
+
+        ahrs.get_hagl(hagl);
     }
 
     // populate and send message
@@ -1520,7 +1521,9 @@ void GCS_MAVLINK::send_opticalflow(AP_AHRS_NavEKF &ahrs, const OpticalFlow &optf
         bodyRate.x,
         bodyRate.y,
         optflow.quality(),
-        hagl); // ground distance (in meters) set to zero
+        hagl,  // ground distance (in meters) set to zero
+        flowRate.x,
+        flowRate.y);
 }
 #endif
 
@@ -1604,7 +1607,7 @@ void GCS_MAVLINK::send_local_position(const AP_AHRS &ahrs) const
 }
 
 /*
-  send LOCAL_POSITION_NED message
+  send VIBRATION message
  */
 void GCS_MAVLINK::send_vibration(const AP_InertialSensor &ins) const
 {
@@ -1707,7 +1710,7 @@ void GCS_MAVLINK::send_servo_output_raw(bool hil)
     uint16_t values[16] {};
     if (hil) {
         for (uint8_t i=0; i<16; i++) {
-            values[i] = RC_Channel::rc_channel(i)->get_radio_out();
+            values[i] = SRV_Channels::srv_channel(i)->get_output_pwm();
         }
     } else {
         hal.rcout->read(values, 16);

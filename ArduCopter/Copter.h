@@ -46,8 +46,8 @@
 #include <AP_AccelCal/AP_AccelCal.h>                // interface and maths for accelerometer calibration
 #include <AP_InertialSensor/AP_InertialSensor.h>  // ArduPilot Mega Inertial Sensor (accel & gyro) Library
 #include <AP_AHRS/AP_AHRS.h>
-#include <AP_NavEKF/AP_NavEKF.h>
 #include <AP_NavEKF2/AP_NavEKF2.h>
+#include <AP_NavEKF3/AP_NavEKF3.h>
 #include <AP_Mission/AP_Mission.h>         // Mission command library
 #include <AC_PID/AC_PID.h>             // PID library
 #include <AC_PID/AC_PI_2D.h>           // PID library (2-axis)
@@ -61,6 +61,7 @@
 #include <AP_RangeFinder/AP_RangeFinder.h>     // Range finder library
 #include <AP_Proximity/AP_Proximity.h>
 #include <AP_Stats/AP_Stats.h>     // statistics library
+#include <AP_Beacon/AP_Beacon.h>
 #include <AP_OpticalFlow/AP_OpticalFlow.h>     // Optical Flow library
 #include <AP_RSSI/AP_RSSI.h>                   // RSSI Library
 #include <Filter/Filter.h>             // Filter library
@@ -195,14 +196,15 @@ private:
         int16_t alt_cm;     // tilt compensated altitude (in cm) from rangefinder
         uint32_t last_healthy_ms;
         LowPassFilterFloat alt_cm_filt; // altitude filter
+        int8_t glitch_count;
     } rangefinder_state = { false, false, 0, 0 };
 
     AP_RPM rpm_sensor;
 
     // Inertial Navigation EKF
-    NavEKF EKF{&ahrs, barometer, rangefinder};
     NavEKF2 EKF2{&ahrs, barometer, rangefinder};
-    AP_AHRS_NavEKF ahrs{ins, barometer, gps, rangefinder, EKF, EKF2, AP_AHRS_NavEKF::FLAG_ALWAYS_USE_EKF};
+    NavEKF3 EKF3{&ahrs, barometer, rangefinder};
+    AP_AHRS_NavEKF ahrs{ins, barometer, gps, rangefinder, EKF2, EKF3, AP_AHRS_NavEKF::FLAG_ALWAYS_USE_EKF};
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
     SITL::SITL sitl;
@@ -323,47 +325,14 @@ private:
         uint8_t compass     : 1;    // true if compass is healthy
     } sensor_health;
 
-    // setup FRAME_MAV_TYPE
-#if (FRAME_CONFIG == QUAD_FRAME)
- #define FRAME_MAV_TYPE MAV_TYPE_QUADROTOR
-#elif (FRAME_CONFIG == TRI_FRAME)
- #define FRAME_MAV_TYPE MAV_TYPE_TRICOPTER
-#elif (FRAME_CONFIG == HEXA_FRAME || FRAME_CONFIG == Y6_FRAME)
- #define FRAME_MAV_TYPE MAV_TYPE_HEXAROTOR
-#elif (FRAME_CONFIG == OCTA_FRAME || FRAME_CONFIG == OCTA_QUAD_FRAME)
- #define FRAME_MAV_TYPE MAV_TYPE_OCTOROTOR
-#elif (FRAME_CONFIG == HELI_FRAME)
- #define FRAME_MAV_TYPE MAV_TYPE_HELICOPTER
-#elif (FRAME_CONFIG == SINGLE_FRAME || FRAME_CONFIG == COAX_FRAME)  //because mavlink did not define a singlecopter, we use a quad
- #define FRAME_MAV_TYPE MAV_TYPE_QUADROTOR
-#else
- #error Unrecognised frame type
-#endif
-
     // Motor Output
-#if FRAME_CONFIG == QUAD_FRAME
- #define MOTOR_CLASS AP_MotorsQuad
-#elif FRAME_CONFIG == TRI_FRAME
- #define MOTOR_CLASS AP_MotorsTri
-#elif FRAME_CONFIG == HEXA_FRAME
- #define MOTOR_CLASS AP_MotorsHexa
-#elif FRAME_CONFIG == Y6_FRAME
- #define MOTOR_CLASS AP_MotorsY6
-#elif FRAME_CONFIG == OCTA_FRAME
- #define MOTOR_CLASS AP_MotorsOcta
-#elif FRAME_CONFIG == OCTA_QUAD_FRAME
- #define MOTOR_CLASS AP_MotorsOctaQuad
-#elif FRAME_CONFIG == HELI_FRAME
+#if FRAME_CONFIG == HELI_FRAME
  #define MOTOR_CLASS AP_MotorsHeli_Single
-#elif FRAME_CONFIG == SINGLE_FRAME
- #define MOTOR_CLASS AP_MotorsSingle
-#elif FRAME_CONFIG == COAX_FRAME
- #define MOTOR_CLASS AP_MotorsCoax
 #else
- #error Unrecognised frame type
+ #define MOTOR_CLASS AP_MotorsMulticopter
 #endif
 
-    MOTOR_CLASS motors;
+    MOTOR_CLASS *motors;
 
     // GPS variables
     // Sometimes we need to remove the scaling for distance calcs
@@ -378,6 +347,17 @@ private:
     // distance between plane and next waypoint in cm.
     uint32_t wp_distance;
     LandStateType land_state = LandStateType_FlyToLocation; // records state of land (flying to location, descending)
+
+    struct {
+        PayloadPlaceStateType state = PayloadPlaceStateType_Calibrating_Hover_Start; // records state of place (descending, releasing, released, ...)
+        uint32_t hover_start_timestamp; // milliseconds
+        float hover_throttle_level;
+        uint32_t descend_start_timestamp; // milliseconds
+        uint32_t place_start_timestamp; // milliseconds
+        float descend_throttle_level;
+        float descend_start_altitude;
+        float descend_max; // centimetres
+    } nav_payload_place;
 
     // Auto
     AutoMode auto_mode;   // controls which auto controller is run
@@ -503,15 +483,10 @@ private:
 
     // Attitude, Position and Waypoint navigation objects
     // To-Do: move inertial nav up or other navigation variables down here
-#if FRAME_CONFIG == HELI_FRAME
-    AC_AttitudeControl_Heli attitude_control;
-#else
-    AC_AttitudeControl_Multi attitude_control;
-#endif
-    AC_PosControl pos_control;
-    AC_Avoid avoid;
-    AC_WPNav wp_nav;
-    AC_Circle circle_nav;
+    AC_AttitudeControl *attitude_control;
+    AC_PosControl *pos_control;
+    AC_WPNav *wp_nav;
+    AC_Circle *circle_nav;
 
     // Performance monitoring
     int16_t pmTest1;
@@ -551,7 +526,9 @@ private:
 #if AC_FENCE == ENABLED
     AC_Fence    fence;
 #endif
-
+#if AC_AVOID_ENABLED == ENABLED
+    AC_Avoid avoid;
+#endif
     // Rally library
 #if AC_RALLY == ENABLED
     AP_Rally_Copter rally;
@@ -631,6 +608,9 @@ private:
         float takeoff_alt_cm;
     } gndeffect_state;
 
+    // set when we are upgrading parameters from 3.4
+    bool upgrading_frame_params;
+    
     static const AP_Scheduler::Task scheduler_tasks[];
     static const AP_Param::Info var_info[];
     static const struct LogStructure log_structure[];
@@ -673,6 +653,7 @@ private:
     bool ins_checks(bool display_failure);
     bool board_voltage_checks(bool display_failure);
     bool parameter_checks(bool display_failure);
+    bool motor_checks(bool display_failure);
     bool pilot_throttle_checks(bool display_failure);
     bool barometer_checks(bool display_failure);
     void update_using_interlock();
@@ -698,22 +679,24 @@ private:
     void gcs_send_deferred(void);
     void send_heartbeat(mavlink_channel_t chan);
     void send_attitude(mavlink_channel_t chan);
-    void send_limits_status(mavlink_channel_t chan);
+    void send_fence_status(mavlink_channel_t chan);
     void send_extended_status1(mavlink_channel_t chan);
     void send_location(mavlink_channel_t chan);
     void send_nav_controller_output(mavlink_channel_t chan);
     void send_simstate(mavlink_channel_t chan);
     void send_hwstatus(mavlink_channel_t chan);
-    void send_servo_out(mavlink_channel_t chan);
     void send_vfr_hud(mavlink_channel_t chan);
     void send_current_waypoint(mavlink_channel_t chan);
     void send_rangefinder(mavlink_channel_t chan);
+    void send_proximity(mavlink_channel_t chan, uint16_t count_max);
     void send_rpm(mavlink_channel_t chan);
     void rpm_update();
     void button_update();
     void init_proximity();
     void update_proximity();
     void stats_update();
+    void init_beacon();
+    void update_beacon();
     void send_pid_tuning(mavlink_channel_t chan);
     void gcs_send_message(enum ap_message id);
     void gcs_send_mission_item_reached_message(uint16_t mission_index);
@@ -748,6 +731,7 @@ private:
     void Log_Write_GuidedTarget(uint8_t target_type, const Vector3f& pos_target, const Vector3f& vel_target);
     void Log_Write_Throw(ThrowModeStage stage, float velocity, float velocity_z, float accel, float ef_accel_z, bool throw_detect, bool attitude_ok, bool height_ok, bool position_ok);
     void Log_Write_Proximity();
+    void Log_Write_Beacon();
     void Log_Write_Vehicle_Startup_Messages();
     void Log_Read(uint16_t log_num, uint16_t start_page, uint16_t end_page);
     void start_logging() ;
@@ -771,6 +755,7 @@ private:
     void do_RTL(void);
     bool verify_takeoff();
     bool verify_land();
+    bool verify_payload_place();
     bool verify_loiter_unlimited();
     bool verify_loiter_time();
     bool verify_RTL();
@@ -797,6 +782,14 @@ private:
     void auto_land_start();
     void auto_land_start(const Vector3f& destination);
     void auto_land_run();
+    void do_payload_place(const AP_Mission::Mission_Command& cmd);
+    void auto_payload_place_start();
+    void auto_payload_place_start(const Vector3f& destination);
+    void auto_payload_place_run();
+    bool auto_payload_place_run_should_run();
+    void auto_payload_place_run_loiter();
+    void auto_payload_place_run_descend();
+    void auto_payload_place_run_release();
     void auto_rtl_start();
     void auto_rtl_run();
     void auto_circle_movetoedge_start(const Location_Class &circle_center, float radius_m);
@@ -883,10 +876,12 @@ private:
     bool landing_with_GPS();
     bool loiter_init(bool ignore_checks);
     void loiter_run();
+#if PRECISION_LANDING == ENABLED
     bool do_precision_loiter() const;
     void precision_loiter_xy();
     void set_precision_loiter_enabled(bool value) { _precision_loiter_enabled = value; }
     bool _precision_loiter_enabled;
+#endif
     bool poshold_init(bool ignore_checks);
     void poshold_run();
     void poshold_update_pilot_lean_angle(float &lean_angle_filtered, float &lean_angle_raw);
@@ -995,6 +990,7 @@ private:
     bool pre_arm_gps_checks(bool display_failure);
     bool pre_arm_ekf_attitude_check();
     bool pre_arm_terrain_check(bool display_failure);
+    bool pre_arm_proximity_check(bool display_failure);
     bool arm_checks(bool display_failure, bool arming_from_gcs);
     void init_disarm_motors();
     void motors_output();
@@ -1063,7 +1059,7 @@ private:
     bool check_if_auxsw_mode_used(uint8_t auxsw_mode_check);
     bool check_duplicate_auxsw(void);
     void reset_control_switch();
-    uint8_t read_3pos_switch(int16_t radio_in);
+    uint8_t read_3pos_switch(uint8_t chan);
     void read_aux_switches();
     void init_aux_switches();
     void init_aux_switch_function(int8_t ch_option, uint8_t ch_flag);
@@ -1079,6 +1075,10 @@ private:
     void update_auto_armed();
     void check_usb_mux(void);
     bool should_log(uint32_t mask);
+    void set_default_frame_class();
+    void allocate_motors(void);
+    uint8_t get_frame_mav_type();
+    const char* get_frame_string();
     bool current_mode_has_user_takeoff(bool must_navigate);
     bool do_user_takeoff(float takeoff_alt_cm, bool must_navigate);
     void takeoff_timer_start(float alt_cm);
@@ -1090,6 +1090,8 @@ private:
     bool start_command(const AP_Mission::Mission_Command& cmd);
     bool verify_command(const AP_Mission::Mission_Command& cmd);
     bool verify_command_callback(const AP_Mission::Mission_Command& cmd);
+
+    Location_Class terrain_adjusted_location(const AP_Mission::Mission_Command& cmd) const;
 
     bool do_guided(const AP_Mission::Mission_Command& cmd);
     void do_takeoff(const AP_Mission::Mission_Command& cmd);

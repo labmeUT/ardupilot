@@ -51,7 +51,7 @@ const AP_Param::GroupInfo AP_Gripper::var_info[] = {
     // @DisplayName: Gripper Regrab interval
     // @Description: Time in seconds that gripper will regrab the cargo to ensure grip has not weakened; 0 to disable
     // @User: Advanced
-    // @Values: 0 255
+    // @Range: 0 255
     // @Units: seconds
     AP_GROUPINFO("REGRAB",  5, AP_Gripper, config.regrab_interval, GRIPPER_REGRAB_DEFAULT),
 
@@ -109,5 +109,24 @@ void AP_Gripper::init()
 PASS_TO_BACKEND(grab)
 PASS_TO_BACKEND(release)
 PASS_TO_BACKEND(update)
+
+#undef PASS_TO_BACKEND
+
+
+#define PASS_TO_BACKEND(function_name)        \
+    bool AP_Gripper::function_name() const    \
+    {                                         \
+        if (!enabled()) {                     \
+            return false;                     \
+        }                                     \
+        if (backend != nullptr) {             \
+            return backend->function_name();  \
+        }                                     \
+        return false;                         \
+    }
+
+PASS_TO_BACKEND(valid)
+PASS_TO_BACKEND(released)
+PASS_TO_BACKEND(grabbed)
 
 #undef PASS_TO_BACKEND

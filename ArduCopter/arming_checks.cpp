@@ -34,7 +34,7 @@ bool Copter::all_arming_checks_passing(bool arming_from_gcs)
 bool Copter::pre_arm_checks(bool display_failure)
 {
     // exit immediately if already armed
-    if (motors.armed()) {
+    if (motors->armed()) {
         return true;
     }
 
@@ -81,6 +81,7 @@ bool Copter::pre_arm_checks(bool display_failure)
         & ins_checks(display_failure)
         & board_voltage_checks(display_failure)
         & parameter_checks(display_failure)
+        & motor_checks(display_failure)
         & pilot_throttle_checks(display_failure);
 }
 
@@ -359,7 +360,7 @@ bool Copter::parameter_checks(bool display_failure)
         }
 
         // acro balance parameter check
-        if ((g.acro_balance_roll > attitude_control.get_angle_roll_p().kP()) || (g.acro_balance_pitch > attitude_control.get_angle_pitch_p().kP())) {
+        if ((g.acro_balance_roll > attitude_control->get_angle_roll_p().kP()) || (g.acro_balance_pitch > attitude_control->get_angle_pitch_p().kP())) {
             if (display_failure) {
                 gcs_send_text(MAV_SEVERITY_CRITICAL,"PreArm: ACRO_BAL_ROLL/PITCH");
             }
@@ -376,19 +377,9 @@ bool Copter::parameter_checks(bool display_failure)
         }
         #endif
 
-        #if PROXIMITY_ENABLED == ENABLED
-        // check proximity sensor if enabled
-        if (copter.g2.proximity.get_status() == AP_Proximity::Proximity_NoData) {
-            if (display_failure) {
-                gcs_send_text(MAV_SEVERITY_CRITICAL,"PreArm: check proximity sensor");
-            }
-            return false;
-        }
-        #endif
-
         #if FRAME_CONFIG == HELI_FRAME
         // check helicopter parameters
-        if (!motors.parameter_check(display_failure)) {
+        if (!motors->parameter_check(display_failure)) {
             return false;
         }
         #endif // HELI_FRAME
@@ -405,8 +396,26 @@ bool Copter::parameter_checks(bool display_failure)
             }
             return false;
         }
+
+        // check for something close to vehicle
+        if (!pre_arm_proximity_check(display_failure)) {
+            return false;
+        }
     }
 
+    return true;
+}
+
+// check motor setup was successful
+bool Copter::motor_checks(bool display_failure)
+{
+    // check motors initialised  correctly
+    if (!motors->initialised_ok()) {
+        if (display_failure) {
+            gcs_send_text(MAV_SEVERITY_CRITICAL,"PreArm: check firmware or FRAME_CLASS");
+        }
+        return false;
+    }
     return true;
 }
 
@@ -607,6 +616,44 @@ bool Copter::pre_arm_terrain_check(bool display_failure)
 #endif
 }
 
+// check nothing is too close to vehicle
+bool Copter::pre_arm_proximity_check(bool display_failure)
+{
+#if PROXIMITY_ENABLED == ENABLED
+
+    // return true immediately if no sensor present
+    if (g2.proximity.get_status() == AP_Proximity::Proximity_NotConnected) {
+        return true;
+    }
+
+    // return false if proximity sensor unhealthy
+    if (g2.proximity.get_status() < AP_Proximity::Proximity_Good) {
+        if (display_failure) {
+            gcs_send_text(MAV_SEVERITY_CRITICAL,"PreArm: check proximity sensor");
+        }
+        return false;
+    }
+
+    // get closest object if we might use it for avoidance
+#if AC_AVOID_ENABLED == ENABLED
+    float angle_deg, distance;
+    if (avoid.proximity_avoidance_enabled() && g2.proximity.get_closest_object(angle_deg, distance)) {
+        // display error if something is within 60cm
+        if (distance <= 0.6f) {
+            if (display_failure) {
+                GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_CRITICAL, "PreArm: Proximity %d deg, %4.2fm", (int)angle_deg, (double)distance);
+            }
+            return false;
+        }
+    }
+#endif
+
+    return true;
+#else
+    return true;
+#endif
+}
+
 // arm_checks - perform final checks before arming
 //  always called just before arming.  Return true if ok to arm
 //  has side-effect that logging is started
@@ -692,9 +739,14 @@ bool Copter::arm_checks(bool display_failure, bool arming_from_gcs)
         return false;
     }
 
+    // always check motors
+    if (!motor_checks(display_failure)) {
+        return false;
+    }
+
     // if we are using motor interlock switch and it's enabled, fail to arm
     // skip check in Throw mode which takes control of the motor interlock
-    if (ap.using_interlock && motors.get_interlock()) {
+    if (ap.using_interlock && motors->get_interlock()) {
         gcs_send_text(MAV_SEVERITY_CRITICAL,"Arm: Motor Interlock Enabled");
         return false;
     }

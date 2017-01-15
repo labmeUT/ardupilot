@@ -37,8 +37,8 @@ const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
     // @User: Standard
 
     // @Param: RAT_RLL_FILT
-    // @DisplayName: Roll axis rate conroller input frequency in Hz
-    // @Description: Roll axis rate conroller input frequency in Hz
+    // @DisplayName: Roll axis rate controller input frequency in Hz
+    // @Description: Roll axis rate controller input frequency in Hz
     // @Range: 1 100
     // @Increment: 1
     // @Units: Hz
@@ -75,8 +75,8 @@ const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
     // @User: Standard
 
     // @Param: RAT_PIT_FILT
-    // @DisplayName: Pitch axis rate conroller input frequency in Hz
-    // @Description: Pitch axis rate conroller input frequency in Hz
+    // @DisplayName: Pitch axis rate controller input frequency in Hz
+    // @Description: Pitch axis rate controller input frequency in Hz
     // @Range: 1 100
     // @Increment: 1
     // @Units: Hz
@@ -113,8 +113,8 @@ const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
     // @User: Standard
 
     // @Param: RAT_YAW_FILT
-    // @DisplayName: Yaw axis rate conroller input frequency in Hz
-    // @Description: Yaw axis rate conroller input frequency in Hz
+    // @DisplayName: Yaw axis rate controller input frequency in Hz
+    // @Description: Yaw axis rate controller input frequency in Hz
     // @Range: 1 100
     // @Increment: 1
     // @Units: Hz
@@ -241,11 +241,9 @@ void AC_AttitudeControl_Multi::parameter_sanity_check()
     if (_thr_mix_min < 0.1f || _thr_mix_min > 0.25f) {
         _thr_mix_min = AC_ATTITUDE_CONTROL_MIN_DEFAULT;
     }
-    if (_thr_mix_max < 0.5f || _thr_mix_max > 0.9f) {
-        _thr_mix_max = AC_ATTITUDE_CONTROL_MAX_DEFAULT;
-    }
-    if (_thr_mix_min > _thr_mix_max) {
-        _thr_mix_min = AC_ATTITUDE_CONTROL_MIN_DEFAULT;
+    if (_thr_mix_max < 0.5f || _thr_mix_max > 2.0f) {
+        // parameter description recommends thr-mix-max be no higher than 0.9 but we allow up to 2.0
+        // which can be useful for very high powered copters with very low hover throttle
         _thr_mix_max = AC_ATTITUDE_CONTROL_MAX_DEFAULT;
     }
 }

@@ -68,3 +68,5 @@ Ryunosuke Kuninobu
 Kenta Asaishi
 LZM
 Isamu Ishiguro
+Naoya Sato
+Brian Ankeny

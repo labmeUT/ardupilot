@@ -52,7 +52,7 @@ private:
     bool _accel_data_ready();
     bool _gyro_data_ready();
 
-    bool _poll_data();
+    void _poll_data();
 
     bool _init_sensor();
     bool _hardware_init();
@@ -103,6 +103,4 @@ private:
      */
     enum Rotation _rotation_a;
     enum Rotation _rotation_g;
-
-    uint8_t _reg_check_counter;
 };
