@@ -21,7 +21,7 @@
 #define WPNAV_LOITER_JERK_MAX_DEFAULT  1000.0f      // maximum jerk in cm/s/s/s in loiter mode
 
 #define WPNAV_WP_SPEED                  500.0f      // default horizontal speed between waypoints in cm/s
-#define WPNAV_WP_SPEED_MIN              100.0f      // minimum horizontal speed between waypoints in cm/s
+#define WPNAV_WP_SPEED_MIN               20.0f      // minimum horizontal speed between waypoints in cm/s
 #define WPNAV_WP_TRACK_SPEED_MIN         50.0f      // minimum speed along track of the target point the vehicle is chasing in cm/s (used as target slows down before reaching destination)
 #define WPNAV_WP_RADIUS                 200.0f      // default waypoint radius in cm
 
@@ -286,10 +286,6 @@ protected:
     /// get_slow_down_speed - returns target speed of target point based on distance from the destination (in cm)
     float get_slow_down_speed(float dist_from_dest_cm, float accel_cmss);
 
-    /// initialise and check for ekf position reset and adjust loiter or brake target position
-    void init_ekf_position_reset();
-    void check_for_ekf_position_reset();
-
     /// spline protected functions
 
     /// update_spline_solution - recalculates hermite_spline_solution grid
@@ -331,11 +327,9 @@ protected:
     AP_Float    _wp_accel_z_cms;        // vertical acceleration in cm/s/s during missions
 
     // loiter controller internal variables
-    uint8_t     _loiter_step;           // used to decide which portion of loiter controller to run during this iteration
     int16_t     _pilot_accel_fwd_cms; 	// pilot's desired acceleration forward (body-frame)
     int16_t     _pilot_accel_rgt_cms;   // pilot's desired acceleration right (body-frame)
     Vector2f    _loiter_desired_accel;  // slewed pilot's desired acceleration in lat/lon frame
-    uint32_t    _loiter_ekf_pos_reset_ms;   // system time of last recorded ekf position reset
 
     // waypoint controller internal variables
     uint32_t    _wp_last_update;        // time of last update_wpnav call

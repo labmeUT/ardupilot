@@ -216,10 +216,10 @@ void Plane::send_servo_out(mavlink_channel_t chan)
         chan,
         millis(),
         0, // port 0
-        10000 * channel_roll->norm_output() * (channel_roll->get_reverse()?-1:1),
-        10000 * channel_pitch->norm_output() * (channel_pitch->get_reverse()?-1:1),
-        10000 * channel_throttle->norm_output() * (channel_throttle->get_reverse()?-1:1),
-        10000 * channel_rudder->norm_output() * (channel_rudder->get_reverse()?-1:1),
+        10000 * (SRV_Channels::get_output_scaled(SRV_Channel::k_aileron) / 4500.0f),
+        10000 * (SRV_Channels::get_output_scaled(SRV_Channel::k_elevator) / 4500.0f),
+        10000 * (SRV_Channels::get_output_scaled(SRV_Channel::k_throttle) / 100.0f),
+        10000 * (SRV_Channels::get_output_scaled(SRV_Channel::k_rudder) / 4500.0f),
         0,
         0,
         0,
@@ -382,7 +382,6 @@ void Plane::send_pid_tuning(mavlink_channel_t chan)
 
 void Plane::send_rangefinder(mavlink_channel_t chan)
 {
-#if RANGEFINDER_ENABLED == ENABLED
     if (!rangefinder.has_data()) {
         // no sonar to report
         return;
@@ -391,7 +390,6 @@ void Plane::send_rangefinder(mavlink_channel_t chan)
         chan,
         rangefinder.distance_cm() * 0.01f,
         rangefinder.voltage_mv()*0.001f);
-#endif
 }
 
 void Plane::send_current_waypoint(mavlink_channel_t chan)
@@ -1337,7 +1335,8 @@ void GCS_MAVLINK_Plane::handleMessage(mavlink_message_t* msg)
             result = MAV_RESULT_FAILED;
             
             // attempt to switch to next DO_LAND_START command in the mission
-            if (plane.jump_to_landing_sequence()) {
+            if (plane.mission.jump_to_landing_sequence()) {
+                plane.set_mode(AUTO, MODE_REASON_UNKNOWN);
                 result = MAV_RESULT_ACCEPTED;
             } 
             break;
@@ -1347,9 +1346,7 @@ void GCS_MAVLINK_Plane::handleMessage(mavlink_message_t* msg)
 
             //Not allowing go around at FLIGHT_LAND_FINAL stage on purpose --
             //if plane is close to the ground a go around could be dangerous.
-            if (plane.flight_stage == AP_SpdHgtControl::FLIGHT_LAND_APPROACH ||
-                plane.flight_stage == AP_SpdHgtControl::FLIGHT_LAND_PREFLARE ||
-                plane.flight_stage == AP_SpdHgtControl::FLIGHT_LAND_FINAL) {
+            if (plane.landing.in_progress) {
                 // Initiate an aborted landing. This will trigger a pitch-up and
                 // climb-out to a safe altitude holding heading then one of the
                 // following actions will occur, check for in this order:
@@ -1361,9 +1358,13 @@ void GCS_MAVLINK_Plane::handleMessage(mavlink_message_t* msg)
                 if (!is_zero(packet.param1)) {
                     plane.auto_state.takeoff_altitude_rel_cm = packet.param1 * 100;
                 }
-                plane.auto_state.commanded_go_around = true;
-               
-                result = MAV_RESULT_ACCEPTED;
+                if (plane.landing.request_go_around()) {
+                    plane.auto_state.next_wp_no_crosstrack = true;
+                    result = MAV_RESULT_ACCEPTED;
+                }
+            }
+
+            if (result == MAV_RESULT_ACCEPTED) {
                 plane.gcs_send_text(MAV_SEVERITY_INFO,"Go around command accepted");
             } else {
                 plane.gcs_send_text(MAV_SEVERITY_NOTICE,"Rejected go around command");
@@ -1766,6 +1767,7 @@ void GCS_MAVLINK_Plane::handleMessage(mavlink_message_t* msg)
 
     case MAVLINK_MSG_ID_GPS_RTCM_DATA:
     case MAVLINK_MSG_ID_GPS_INPUT:
+    case MAVLINK_MSG_ID_HIL_GPS:
     {
         plane.gps.handle_msg(msg);
         break;
@@ -1897,11 +1899,9 @@ void GCS_MAVLINK_Plane::handleMessage(mavlink_message_t* msg)
         handle_gps_inject(msg, plane.gps);
         break;
 
-#if RANGEFINDER_ENABLED == ENABLED
     case MAVLINK_MSG_ID_DISTANCE_SENSOR:
         plane.rangefinder.handle_msg(msg);
         break;
-#endif
 
     case MAVLINK_MSG_ID_TERRAIN_DATA:
     case MAVLINK_MSG_ID_TERRAIN_CHECK:

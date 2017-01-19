@@ -82,9 +82,10 @@ const AP_Param::GroupInfo AP_MotorsMulticopter::var_info[] = {
 
     // @Param: PWM_TYPE
     // @DisplayName: Output PWM type
-    // @Description: This selects the output PWM type, allowing for normal PWM continuous output or OneShot125
-    // @Values: 0:Normal,1:OneShot,2:OneShot125
+    // @Description: This selects the output PWM type, allowing for normal PWM continuous output, OneShot or brushed motor output
+    // @Values: 0:Normal,1:OneShot,2:OneShot125,3:Brushed16kHz
     // @User: Advanced
+    // @RebootRequired: True
     AP_GROUPINFO("PWM_TYPE", 15, AP_MotorsMulticopter, _pwm_type, PWM_TYPE_NORMAL),
 
     // @Param: PWM_MIN
@@ -144,6 +145,15 @@ const AP_Param::GroupInfo AP_MotorsMulticopter::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("SAFE_DISARM", 23, AP_MotorsMulticopter, _disarm_disable_pwm, 0),
 
+    // @Param: YAW_SV_ANGLE
+    // @DisplayName: Yaw Servo Max Lean Angle
+    // @Description: Yaw servo's maximum lean angle
+    // @Range: 5 80
+    // @Units: Degrees
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("YAW_SV_ANGLE", 35, AP_MotorsMulticopter,  _yaw_servo_angle_max_deg, 30),
+    
     AP_GROUPEND
 };
 
@@ -302,7 +312,7 @@ void AP_MotorsMulticopter::update_battery_resistance()
         _batt_voltage_resting = _batt_voltage;
         _batt_current_resting = _batt_current;
         _batt_timer = 0;
-    } else if(_batt_voltage_resting < _batt_voltage && _batt_current_resting > _batt_current) {
+    } else if (_batt_voltage_resting > _batt_voltage && _batt_current_resting < _batt_current) {
         // update battery resistance when throttle is over hover throttle
         float batt_resistance = (_batt_voltage_resting-_batt_voltage)/(_batt_current-_batt_current_resting);
         if ((_batt_timer < 400) && ((_batt_current_resting*2.0f) < _batt_current)) {

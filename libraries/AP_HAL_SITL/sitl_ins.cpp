@@ -84,7 +84,7 @@ uint16_t SITL_State::_airspeed_sensor(float airspeed)
  */
 uint16_t SITL_State::_ground_sonar(void)
 {
-    float altitude = height_agl();
+    float altitude = _sitl->height_agl;
 
     // sensor position offset in body frame
     Vector3f relPosSensorBF = _sitl->rngfnd_pos_offset;
@@ -103,8 +103,8 @@ uint16_t SITL_State::_ground_sonar(void)
     }
 
     float voltage = 5.0f;
-    if (fabsf(_sitl->state.rollDeg) < 90 &&
-            fabsf(_sitl->state.pitchDeg) < 90) {
+    if (fabs(_sitl->state.rollDeg) < 90 &&
+        fabs(_sitl->state.pitchDeg) < 90) {
         // adjust for apparent altitude with roll
         altitude /= cosf(radians(_sitl->state.rollDeg)) * cosf(radians(_sitl->state.pitchDeg));
 
