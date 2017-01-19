@@ -482,7 +482,7 @@ void Copter::one_hz_loop()
         Log_Write_Data(DATA_AP_STATE, ap.value);
     }
 
-    update_arming_checks();
+    arming.update();
 
     if (!motors->armed()) {
         // make it possible to change ahrs orientation at runtime during initial config
@@ -503,9 +503,6 @@ void Copter::one_hz_loop()
     SRV_Channels::enable_aux_servos();
 
     check_usb_mux();
-
-    // update position controller alt limits
-    update_poscon_alt_max();
 
     // enable/disable raw gyro/accel logging
     ins.set_raw_logging(should_log(MASK_LOG_IMU_RAW));

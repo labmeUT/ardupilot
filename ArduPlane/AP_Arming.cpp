@@ -1,6 +1,7 @@
 /*
   additional arming checks for plane
  */
+#include "AP_Arming.h"
 #include "Plane.h"
 
 const AP_Param::GroupInfo AP_Arming_Plane::var_info[] = {
@@ -17,6 +18,10 @@ const AP_Param::GroupInfo AP_Arming_Plane::var_info[] = {
     AP_GROUPEND
 };
 
+enum HomeState AP_Arming_Plane::home_status() const
+{
+    return plane.home_is_set;
+}
 
 bool AP_Arming_Plane::arm(uint8_t method)
 {
