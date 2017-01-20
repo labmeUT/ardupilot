@@ -301,10 +301,10 @@ void Rover::update_logging2(void)
 void Rover::update_aux(void)
 {
     // YUSA: Modification for Cylinder
-    if ( control_mode == AUTO || control_mode == RTL || control_mode == GUIDED ) {
-        SRV_Channels::disable_passthrough(true);
-    }else{
+    if ( control_mode == MANUAL || control_mode == LEARNING ) {
         SRV_Channels::disable_passthrough(false);
+    }else{
+        SRV_Channels::disable_passthrough(true);
     }
     SRV_Channels::enable_aux_servos();
 }
