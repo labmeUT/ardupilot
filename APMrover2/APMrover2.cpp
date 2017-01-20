@@ -301,8 +301,7 @@ void Rover::update_logging2(void)
 void Rover::update_aux(void)
 {
     // YUSA: Modification for Cylinder
-
-    if (control_mode == AUTO) {
+    if ( control_mode == AUTO || control_mode == RTL || control_mode == GUIDED ) {
         SRV_Channels::disable_passthrough(true);
     }else{
         SRV_Channels::disable_passthrough(false);
@@ -442,12 +441,26 @@ void Rover::update_GPS_10Hz(void)
 
 void Rover::update_current_mode(void)
 {
+    /* YUSA: mode change detection */
+    static enum mode control_mode_old;
+    
     switch (control_mode){
     case AUTO:
-    case RTL:
+        /* YUSA: Separate AUTO and RTL */
         calc_lateral_acceleration();
         calc_nav_steer();
         calc_throttle(g.speed_cruise);
+        break;
+    case RTL:
+        /* YUSA: Separate AUTO and RTL */
+        calc_lateral_acceleration();
+        calc_nav_steer();
+        calc_throttle(g.speed_cruise);
+        /* YUSA: Trim Ch6 and Ch7 when mode changed */
+        if( control_mode != control_mode_old){
+            SRV_Channels::set_output_to_trim( SRV_Channel::k_rcin6 );
+            SRV_Channels::set_output_to_trim( SRV_Channel::k_rcin7 );
+        }
         break;
 
     case GUIDED: {
@@ -535,6 +548,8 @@ void Rover::update_current_mode(void)
     case INITIALISING:
         break;
     }
+    /* YUSA: mode change detection */
+    control_mode_old = control_mode;
 }
 
 void Rover::update_navigation()

@@ -47,7 +47,11 @@ void SRV_Channel::output_ch(void)
         RC_Channel *rc = RC_Channels::rc_channel(passthrough_from);
         if (rc) {
             if (SRV_Channels::passthrough_disabled()) {
-                output_pwm = hal.rcout->read(ch_num);
+                if((have_pwm_mask & (1U<<ch_num)){
+                    have_pwm_mask &= ~(1U<<ch_num)
+                }else{
+                    output_pwm = hal.rcout->read(ch_num);
+                }
             } else {
                 output_pwm = rc->get_radio_in();
             }
