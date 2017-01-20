@@ -220,6 +220,38 @@ uint16_t SRV_Channel::pwm_from_angle(int16_t scaled_value) const
     }
 }
 
+// convert a 0.. pwm to a range_max
+int16_t SRV_Channel::range_from_pwm(uint16_t pwm) const
+{
+    if (servo_max <= servo_min || high_out == 0) {
+        return servo_trim;
+    }
+    if(reversed){
+        return (int16_t)( high_out * (int32_t)( servo_max - pwm ) / (int32_t)(servo_max - servo_min));
+    } else {
+        return (int16_t)( high_out * (int32_t)( pwm - servo_min ) / (int32_t)(servo_max - servo_min));
+    }
+}
+
+// convert a -angle_max.. pwm to a angle_max
+int16_t SRV_Channel::angle_from_pwm(uint16_t pwm) const
+{
+    if (pwm > servo_trim ) {
+        if (reversed) {
+            return (int16_t)-(high_out * (int32_t)(pwm - servo_trim)) / (int32_t)(servo_max - servo_trim) );
+        } else{
+            return (int16_t)(high_out * (int32_t)(pwm - servo_trim)) / (int32_t)(servo_max - servo_trim) );
+        }
+    } else {
+        if (reversed) {
+            return (int16_t)-(high_out * (int32_t)(servo_trim - pwm)) / (int32_t)(servo_min - servo_trim) );
+        } else{
+            return (int16_t)(high_out * (int32_t)(servo_trim - pwm)) / (int32_t)(servo_min - servo_trim) );
+        }
+    }
+}
+
+
 void SRV_Channel::calc_pwm(int16_t output_scaled)
 {
     if (have_pwm_mask & (1U<<ch_num)) {
@@ -252,6 +284,13 @@ void SRV_Channel::set_output_pwm(uint16_t pwm)
 {
     output_pwm = pwm;
     have_pwm_mask |= (1U<<ch_num);
+    uint16_t scale_val;
+    if (type_angle) {
+        scale_val = angle_from_pwm(pwm);
+    } else {
+        scale_val = range_from_pwm(pwm);
+    }
+    functions[channels[ch_num].function].output_scaled = scale_val;
 }
 
 // set angular range of scaled output

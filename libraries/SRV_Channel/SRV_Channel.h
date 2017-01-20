@@ -177,6 +177,12 @@ private:
     // convert a -angle_max..angle_max to a pwm
     uint16_t pwm_from_angle(int16_t scaled_value) const;
 
+    // convert a 0.. pwm to a range_max
+    int16_t range_from_pwm(uint16_t pwm) const;
+
+    // convert a -angle_max.. pwm to a angle_max
+    int16_t angle_from_pwm(uint16_t pwm) const;
+
     // convert a scaled output to a pwm value
     void calc_pwm(int16_t output_scaled);
 
