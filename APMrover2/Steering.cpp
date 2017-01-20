@@ -342,7 +342,7 @@ void Rover::set_servos(void) {
         }
     }
 
-    //SRV_Channels::calc_pwm();
+    SRV_Channels::calc_pwm();
 
 #if HIL_MODE == HIL_MODE_DISABLED || HIL_SERVOS
     // send values to the PWM timers for output

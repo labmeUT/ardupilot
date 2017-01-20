@@ -37,6 +37,10 @@ Rover rover;
 
 #define SCHED_TASK(func, _interval_ticks, _max_time_micros) SCHED_TASK_CLASS(Rover, &rover, func, _interval_ticks, _max_time_micros)
 
+/* YUSA: output channel definition*/
+#define CH_6 6
+#define CH_7 7
+
 /*
   scheduler table - all regular tasks should be listed here, along
   with how often they should be called (in 20ms units) and the maximum
@@ -458,8 +462,14 @@ void Rover::update_current_mode(void)
         calc_throttle(g.speed_cruise);
         /* YUSA: Trim Ch6 and Ch7 when mode changed */
         if( control_mode != control_mode_old){
-            SRV_Channels::set_output_to_trim( SRV_Channel::k_rcin6 );
-            SRV_Channels::set_output_to_trim( SRV_Channel::k_rcin7 );
+            SRV_Channel *cylinder;
+            SRV_Channel *cutter;
+            cylinder = SRV_Channels::get_channel_for( SRV_Channel::k_rcin6, CH6 );
+            cutter   = SRV_Channels::get_channel_for( SRV_Channel::k_rcin7, CH7 );
+            hal.rcout->enable_ch(CH_6);
+            hal.rcout->write(CH_6, cylinder->get_trim());
+            hal.rcout->enable_ch(CH_7);
+            hal.rcout->write(CH_7, cutter->get_trim());
         }
         break;
 
