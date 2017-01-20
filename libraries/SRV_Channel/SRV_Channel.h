@@ -332,7 +332,7 @@ public:
     static void set_range(SRV_Channel::Aux_servo_function_t function, uint16_t range);
     
     // control pass-thru of channels
-    void disable_passthrough(bool disable) {
+    static void disable_passthrough(bool disable) {
         disabled_passthrough = disable;
     }
 
