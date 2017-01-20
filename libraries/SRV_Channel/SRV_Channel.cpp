@@ -227,9 +227,9 @@ int16_t SRV_Channel::range_from_pwm(uint16_t pwm) const
         return servo_trim;
     }
     if(reversed){
-        return (int16_t)( high_out * (int32_t)( servo_max - pwm ) / (int32_t)(servo_max - servo_min));
+        return (int16_t)( high_out * (int32_t)( servo_max - pwm ) / (int32_t)(servo_max - servo_min) );
     } else {
-        return (int16_t)( high_out * (int32_t)( pwm - servo_min ) / (int32_t)(servo_max - servo_min));
+        return (int16_t)( high_out * (int32_t)( pwm - servo_min ) / (int32_t)(servo_max - servo_min) );
     }
 }
 
@@ -238,15 +238,15 @@ int16_t SRV_Channel::angle_from_pwm(uint16_t pwm) const
 {
     if (pwm > servo_trim ) {
         if (reversed) {
-            return (int16_t)-(high_out * (int32_t)(pwm - servo_trim)) / (int32_t)(servo_max - servo_trim) );
+            return (int16_t)-(high_out * (int32_t)(pwm - servo_trim) / (int32_t)(servo_max - servo_trim) );
         } else{
-            return (int16_t)(high_out * (int32_t)(pwm - servo_trim)) / (int32_t)(servo_max - servo_trim) );
+            return (int16_t)(high_out * (int32_t)(pwm - servo_trim) / (int32_t)(servo_max - servo_trim) );
         }
     } else {
         if (reversed) {
-            return (int16_t)-(high_out * (int32_t)(servo_trim - pwm)) / (int32_t)(servo_min - servo_trim) );
+            return (int16_t)-(high_out * (int32_t)(servo_trim - pwm) / (int32_t)(servo_min - servo_trim) );
         } else{
-            return (int16_t)(high_out * (int32_t)(servo_trim - pwm)) / (int32_t)(servo_min - servo_trim) );
+            return (int16_t)(high_out * (int32_t)(servo_trim - pwm) / (int32_t)(servo_min - servo_trim) );
         }
     }
 }
