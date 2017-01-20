@@ -37,10 +37,6 @@ Rover rover;
 
 #define SCHED_TASK(func, _interval_ticks, _max_time_micros) SCHED_TASK_CLASS(Rover, &rover, func, _interval_ticks, _max_time_micros)
 
-/* YUSA: output channel definition*/
-#define CH_6 6
-#define CH_7 7
-
 /*
   scheduler table - all regular tasks should be listed here, along
   with how often they should be called (in 20ms units) and the maximum
@@ -464,8 +460,8 @@ void Rover::update_current_mode(void)
         if( control_mode != control_mode_old){
             SRV_Channel *cylinder;
             SRV_Channel *cutter;
-            cylinder = SRV_Channels::get_channel_for( SRV_Channel::k_rcin6, CH6 );
-            cutter   = SRV_Channels::get_channel_for( SRV_Channel::k_rcin7, CH7 );
+            cylinder = SRV_Channels::get_channel_for( SRV_Channel::k_rcin6, -1 );
+            cutter   = SRV_Channels::get_channel_for( SRV_Channel::k_rcin7, -1 );
             hal.rcout->enable_ch(CH_6);
             hal.rcout->write(CH_6, cylinder->get_trim());
             hal.rcout->enable_ch(CH_7);
