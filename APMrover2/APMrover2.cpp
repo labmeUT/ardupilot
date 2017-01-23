@@ -458,18 +458,18 @@ void Rover::update_current_mode(void)
         calc_throttle(g.speed_cruise);
         /* YUSA: Trim Ch6 and Ch7 when mode changed */
         if( control_mode != control_mode_old){
-            SRV_Channel *cylinder;
-            uint8_t cylinder_ch_num;
-            SRV_Channel *cutter;
-            uint8_t cutter_ch_num;
+            SRV_Channel *cylinder, *cutter;
+            uint8_t cylinder_ch_num, cylinder_trim_val, cutter_ch_num, cutter_trim_val;
             cylinder = SRV_Channels::get_channel_for( SRV_Channel::k_rcin6, -1 );
             cutter   = SRV_Channels::get_channel_for( SRV_Channel::k_rcin7, -1 );
             SRV_Channels::find_channel( SRV_Channel::k_rcin6, cylinder_ch_num );
             SRV_Channels::find_channel( SRV_Channel::k_rcin7, cutter_ch_num );
+            cylinder_trim_val = cylinder->get_trim();
+            cutter_trim_val = cutter->get_trim();
             hal.rcout->enable_ch(cylinder_ch_num);
-            hal.rcout->write(cylinder_ch_num, cylinder->get_trim());
+            hal.rcout->write(cylinder_ch_num, cylinder_trim_val);
             hal.rcout->enable_ch(cutter_ch_num);
-            hal.rcout->write(cutter_ch_num, cutter->get_trim());
+            hal.rcout->write(cutter_ch_num, cutter_trim_val);
         }
         break;
 
