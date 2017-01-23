@@ -459,7 +459,8 @@ void Rover::update_current_mode(void)
         /* YUSA: Trim Ch6 and Ch7 when mode changed */
         if( control_mode != control_mode_old){
             SRV_Channel *cylinder, *cutter;
-            uint8_t cylinder_ch_num, cylinder_trim_val, cutter_ch_num, cutter_trim_val;
+            uint8_t cylinder_ch_num, cutter_ch_num;
+            uint16_t cylinder_trim_val, cutter_trim_val;
             cylinder = SRV_Channels::get_channel_for( SRV_Channel::k_rcin6, -1 );
             cutter   = SRV_Channels::get_channel_for( SRV_Channel::k_rcin7, -1 );
             SRV_Channels::find_channel( SRV_Channel::k_rcin6, cylinder_ch_num );
