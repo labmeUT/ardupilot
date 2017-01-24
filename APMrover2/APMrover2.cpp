@@ -462,9 +462,9 @@ void Rover::update_current_mode(void)
             uint8_t cylinder_ch_num, cutter_ch_num;
             uint16_t cylinder_trim_val, cutter_trim_val;
             cylinder = SRV_Channels::get_channel_for( SRV_Channel::k_rcin6, -1 );
-            cutter   = SRV_Channels::get_channel_for( SRV_Channel::k_rcin7, -1 );
+            cutter   = SRV_Channels::get_channel_for( SRV_Channel::k_rcin5, -1 );
             SRV_Channels::find_channel( SRV_Channel::k_rcin6, cylinder_ch_num );
-            SRV_Channels::find_channel( SRV_Channel::k_rcin7, cutter_ch_num );
+            SRV_Channels::find_channel( SRV_Channel::k_rcin5, cutter_ch_num );
             cylinder_trim_val = cylinder->get_trim();
             cutter_trim_val = cutter->get_trim();
             hal.rcout->enable_ch(cylinder_ch_num);
