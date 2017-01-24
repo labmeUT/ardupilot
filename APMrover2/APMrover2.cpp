@@ -300,13 +300,30 @@ void Rover::update_logging2(void)
  */
 void Rover::update_aux(void)
 {
+    /* YUSA: mode change detection */
+    static enum mode control_mode_old;
+   
     // YUSA: Modification for Cylinder
     if ( control_mode == MANUAL || control_mode == LEARNING ) {
         SRV_Channels::disable_passthrough(false);
     }else{
         SRV_Channels::disable_passthrough(true);
     }
+     /* YUSA: Trim cutter and cylinder when mode changed */
+    if( control_mode != control_mode_old){
+        switch (control_mode){
+        case RTL:
+            trim_cutter_cylinder();
+            break;
+        default:
+            break;
+        }
+    }
+    /* YUSA: mode change detection */
+    control_mode_old = control_mode;
+        
     SRV_Channels::enable_aux_servos();
+    
 }
 
 /*
@@ -439,11 +456,30 @@ void Rover::update_GPS_10Hz(void)
     }
 }
 
+void Rover::trim_cutter_cylinder(void)
+{
+    SRV_Channel *cylinder, *cutter;
+    uint8_t cylinder_ch_num, cutter_ch_num;
+    uint16_t cylinder_trim_val, cutter_trim_val;
+    //YUSA: channel identify
+    cylinder = SRV_Channels::get_channel_for( SRV_Channel::k_rcin6, -1 );
+    cutter   = SRV_Channels::get_channel_for( SRV_Channel::k_rcin5, -1 );
+    //YUSA: channel number identify
+    SRV_Channels::find_channel( SRV_Channel::k_rcin6, cylinder_ch_num );
+    SRV_Channels::find_channel( SRV_Channel::k_rcin5, cutter_ch_num );
+    //YUSA: get trim
+    cylinder_trim_val = cylinder->get_trim();
+    cutter_trim_val = cutter->get_trim();
+    //YUSA: output trim value directly because steering.cpp has a bug
+    hal.rcout->enable_ch(cylinder_ch_num);
+    hal.rcout->write(cylinder_ch_num, cylinder_trim_val);
+    hal.rcout->enable_ch(cutter_ch_num);
+    hal.rcout->write(cutter_ch_num, cutter_trim_val);
+}
+
 void Rover::update_current_mode(void)
 {
-    /* YUSA: mode change detection */
-    static enum mode control_mode_old;
-    
+
     switch (control_mode){
     case AUTO:
         /* YUSA: Separate AUTO and RTL */
@@ -456,22 +492,7 @@ void Rover::update_current_mode(void)
         calc_lateral_acceleration();
         calc_nav_steer();
         calc_throttle(g.speed_cruise);
-        /* YUSA: Trim Ch6 and Ch7 when mode changed */
-        if( control_mode != control_mode_old){
-            SRV_Channel *cylinder, *cutter;
-            uint8_t cylinder_ch_num, cutter_ch_num;
-            uint16_t cylinder_trim_val, cutter_trim_val;
-            cylinder = SRV_Channels::get_channel_for( SRV_Channel::k_rcin6, -1 );
-            cutter   = SRV_Channels::get_channel_for( SRV_Channel::k_rcin5, -1 );
-            SRV_Channels::find_channel( SRV_Channel::k_rcin6, cylinder_ch_num );
-            SRV_Channels::find_channel( SRV_Channel::k_rcin5, cutter_ch_num );
-            cylinder_trim_val = cylinder->get_trim();
-            cutter_trim_val = cutter->get_trim();
-            hal.rcout->enable_ch(cylinder_ch_num);
-            hal.rcout->write(cylinder_ch_num, cylinder_trim_val);
-            hal.rcout->enable_ch(cutter_ch_num);
-            hal.rcout->write(cutter_ch_num, cutter_trim_val);
-        }
+        
         break;
 
     case GUIDED: {
@@ -559,8 +580,7 @@ void Rover::update_current_mode(void)
     case INITIALISING:
         break;
     }
-    /* YUSA: mode change detection */
-    control_mode_old = control_mode;
+
 }
 
 void Rover::update_navigation()

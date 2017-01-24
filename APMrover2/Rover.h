@@ -428,6 +428,8 @@ private:
     void gcs_update(void);
     void gcs_send_text(MAV_SEVERITY severity, const char *str);
     void gcs_retry_deferred(void);
+    //YUSA:Trim Cutter and Cylinder Function
+    void trim_cutter_cylinder(void);
 
     void do_erase_logs(void);
     void Log_Write_Performance();
