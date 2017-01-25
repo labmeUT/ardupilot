@@ -470,11 +470,13 @@ void Rover::trim_cutter_cylinder(void)
     //YUSA: get trim
     cylinder_trim_val = cylinder->get_trim();
     cutter_trim_val = cutter->get_trim();
-    //YUSA: output trim value directly because steering.cpp has a bug
-    hal.rcout->enable_ch(cylinder_ch_num);
-    hal.rcout->write(cylinder_ch_num, cylinder_trim_val);
-    hal.rcout->enable_ch(cutter_ch_num);
-    hal.rcout->write(cutter_ch_num, cutter_trim_val);
+    //YUSA: output trim value using do_set_servo because SRV_Channels::set_output_to_trim does not work
+    //hal.rcout->enable_ch(cylinder_ch_num);
+    //hal.rcout->write(cylinder_ch_num, cylinder_trim_val);
+    //hal.rcout->enable_ch(cutter_ch_num);
+    //hal.rcout->write(cutter_ch_num, cutter_trim_val);
+    ServoRelayEvents::do_set_servo( cylinder_ch_num, cylinder_trim_val );
+    ServoRelayEvents::do_set_servo( cutter_ch_num, cutter_trim_val);
 }
 
 void Rover::update_current_mode(void)
