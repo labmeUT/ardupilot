@@ -458,25 +458,10 @@ void Rover::update_GPS_10Hz(void)
 
 void Rover::trim_cutter_cylinder(void)
 {
-    SRV_Channel *cylinder, *cutter;
-    uint8_t cylinder_ch_num, cutter_ch_num;
-    uint16_t cylinder_trim_val, cutter_trim_val;
-    //YUSA: channel identify
-    cylinder = SRV_Channels::get_channel_for( SRV_Channel::k_rcin6, -1 );
-    cutter   = SRV_Channels::get_channel_for( SRV_Channel::k_rcin5, -1 );
-    //YUSA: channel number identify
-    SRV_Channels::find_channel( SRV_Channel::k_rcin6, cylinder_ch_num );
-    SRV_Channels::find_channel( SRV_Channel::k_rcin5, cutter_ch_num );
-    //YUSA: get trim
-    cylinder_trim_val = cylinder->get_trim();
-    cutter_trim_val = cutter->get_trim();
-    //YUSA: output trim value using do_set_servo because SRV_Channels::set_output_to_trim does not work
-    //hal.rcout->enable_ch(cylinder_ch_num);
-    //hal.rcout->write(cylinder_ch_num, cylinder_trim_val);
-    //hal.rcout->enable_ch(cutter_ch_num);
-    //hal.rcout->write(cutter_ch_num, cutter_trim_val);
-    ServoRelayEvents::do_set_servo( cylinder_ch_num, cylinder_trim_val );
-    ServoRelayEvents::do_set_servo( cutter_ch_num, cutter_trim_val);
+    //YUSA: trim cylinder
+    SRV_Channels::set_output_to_trim( SRV_Channel::k_rcin6 );
+    //YUSA: trim cutter
+    SRV_Channels::set_output_to_trim( SRV_Channel::k_rcin5 );
 }
 
 void Rover::update_current_mode(void)

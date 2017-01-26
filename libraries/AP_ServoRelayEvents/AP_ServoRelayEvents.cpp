@@ -36,9 +36,17 @@ bool AP_ServoRelayEvents::do_set_servo(uint8_t _channel, uint16_t pwm)
         // cancel previous repeat
         repeat = 0;
     }
-    hal.rcout->enable_ch(_channel-1);
-    hal.rcout->write(_channel-1, pwm);
-    return true;
+    //YUSA: change
+    //hal.rcout->enable_ch(_channel-1);
+    //hal.rcout->write(_channel-1, pwm);
+    SRV_Channel *ch;
+    ch = SRV_Channels::srv_channel(_channel-1);
+    if( ch != nullptr ){
+        ch->set_output_pwm(pwm);
+        return true;
+    }else{
+        return false;
+    }
 }
 
 bool AP_ServoRelayEvents::do_set_relay(uint8_t relay_num, uint8_t state)
@@ -108,14 +116,22 @@ void AP_ServoRelayEvents::update_events(void)
     }
 
     start_time_ms = AP_HAL::millis();
+    SRV_Channel *ch;
+    ch = SRV_Channels::srv_channel(channel-1);
 
     switch (type) {
     case EVENT_TYPE_SERVO:
         hal.rcout->enable_ch(channel-1);
         if (repeat & 1) {
-            hal.rcout->write(channel-1, SRV_Channels::srv_channel(channel-1)->get_trim());
+            //YUSA: change
+            //hal.rcout->write(channel-1, SRV_Channels::srv_channel(channel-1)->get_trim());
+            //SRV_Channels::set_output_to_trim( (SRV_Channel::Aux_servo_function_t)((uint8_t)SRV_Channel::k_rcin1+channel));
+            ch->set_output_pwm(ch->get_trim());
         } else {
-            hal.rcout->write(channel-1, servo_value);
+            //YUSA: change
+            //hal.rcout->write(channel-1, servo_value);
+            //SRV_Channels::set_output_pwm( (SRV_Channel::Aux_servo_function_t)((uint8_t)SRV_Channel::k_rcin1+channel), servo_value );
+            ch->set_output_pwm(servo_value);
         }
         break;
         

@@ -47,7 +47,7 @@ void SRV_Channel::output_ch(void)
         RC_Channel *rc = RC_Channels::rc_channel(passthrough_from);
         if (rc) {
             if (SRV_Channels::passthrough_disabled()) {
-                output_pwm = hal.rcout->read(ch_num);
+                //YUSA: do nothing
             } else {
                 output_pwm = rc->get_radio_in();
             }
