@@ -23,7 +23,7 @@ void Rover::rpm_update(void)
 {
     rpm_sensor.update();
     if (rpm_sensor.enabled(0) || rpm_sensor.enabled(1)) {
-        if (should_log(MASK_LOG_RCIN)) {
+        if (should_log(MASK_LOG_RC)) {
             DataFlash.Log_Write_RPM(rpm_sensor);
         }
     }
