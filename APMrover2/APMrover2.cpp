@@ -63,6 +63,7 @@ const AP_Scheduler::Task Rover::scheduler_tasks[] = {
     SCHED_TASK(read_trim_switch,       10,   1000),
     SCHED_TASK(read_battery,           10,   1000),
     SCHED_TASK(read_receiver_rssi,     10,   1000),
+    SCHED_TASK(rpm_update,             10,    200),
     SCHED_TASK(update_events,          50,   1000),
     SCHED_TASK(check_usb_mux,           3,   1000),
     SCHED_TASK(mount_update,           50,    600),

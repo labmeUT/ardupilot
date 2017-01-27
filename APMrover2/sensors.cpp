@@ -16,6 +16,19 @@ void Rover::init_sonar(void)
     sonar.init();
 }
 
+/*
+  update RPM sensors
+ */
+void Rover::rpm_update(void)
+{
+    rpm_sensor.update();
+    if (rpm_sensor.enabled(0) || rpm_sensor.enabled(1)) {
+        if (should_log(MASK_LOG_RCIN)) {
+            DataFlash.Log_Write_RPM(rpm_sensor);
+        }
+    }
+}
+
 // read_battery - reads battery voltage and current and invokes failsafe
 // should be called at 10hz
 void Rover::read_battery(void)

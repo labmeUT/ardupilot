@@ -73,6 +73,8 @@
 #include <AP_Button/AP_Button.h>
 #include <AP_Stats/AP_Stats.h>                      // statistics library
 #include <AP_Beacon/AP_Beacon.h>
+#include <AP_RPM/AP_RPM.h>
+
 
 // Configuration
 #include "config.h"
@@ -171,6 +173,9 @@ private:
 
     // RSSI
     AP_RSSI rssi;
+    
+    // RPM Sensor
+    AP_RPM rpm_sensor;
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
     SITL::SITL sitl;
@@ -430,6 +435,8 @@ private:
     void gcs_retry_deferred(void);
     //YUSA:Trim Cutter and Cylinder Function
     void trim_cutter_cylinder(void);
+    void send_rpm(mavlink_channel_t chan);
+    void rpm_update();
 
     void do_erase_logs(void);
     void Log_Write_Performance();

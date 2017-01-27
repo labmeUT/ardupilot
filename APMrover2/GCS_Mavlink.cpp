@@ -240,6 +240,19 @@ void Rover::send_rangefinder(mavlink_channel_t chan)
 }
 
 /*
+  send RPM packet
+ */
+void NOINLINE Rover::send_rpm(mavlink_channel_t chan)
+{
+    if (rpm_sensor.enabled(0) || rpm_sensor.enabled(1)) {
+        mavlink_msg_rpm_send(
+            chan,
+            rpm_sensor.get_rpm(0),
+            rpm_sensor.get_rpm(1));
+    }
+}
+
+/*
   send PID tuning message
  */
 void Rover::send_pid_tuning(mavlink_channel_t chan)
@@ -438,6 +451,11 @@ bool GCS_MAVLINK_Rover::try_send_message(enum ap_message id)
         send_vibration(rover.ins);
         break;
 
+    case MSG_RPM:
+        CHECK_PAYLOAD_SIZE(RPM);
+        rover.send_rpm(chan);
+        break;
+        
     case MSG_BATTERY2:
         CHECK_PAYLOAD_SIZE(BATTERY2);
         send_battery2(rover.battery);
@@ -695,6 +713,7 @@ GCS_MAVLINK_Rover::data_stream_send(void)
         send_message(MSG_MOUNT_STATUS);
         send_message(MSG_EKF_STATUS_REPORT);
         send_message(MSG_VIBRATION);
+        send_message(MSG_RPM);
     }
 }
 

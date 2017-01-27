@@ -166,6 +166,9 @@ void Rover::init_ardupilot()
 
     relay.init();
 
+    // initialise AP_RPM library
+    rpm_sensor.init();
+
 #if MOUNT == ENABLED
     // initialise camera mount
     camera_mount.init(&DataFlash, serial_manager);
