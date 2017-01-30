@@ -64,7 +64,14 @@ float SimRover::calc_yaw_rate(float steering, float speed)
     if (skid_steering) {
         return steering * skid_turn_rate;
     }
-    if (fabsf(steering) < 1.0e-6 or fabsf(speed) < 1.0e-6) {
+    if (fabsf(speed) < 1.0e-5) {
+        if(fabsf(steering) < 1.0e-6){
+            return 0;
+        }else{
+            return steering * skid_turn_rate;
+        }
+    }
+    if(fabsf(steering) < 1.0e-6){
         return 0;
     }
     float d = turn_circle(steering);
