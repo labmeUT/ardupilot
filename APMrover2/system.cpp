@@ -119,6 +119,9 @@ void Rover::init_ardupilot()
 
     battery.init();
 
+    //thermocouple initialise
+    celsius.init();
+    
     // keep a record of how many resets have happened. This can be
     // used to detect in-flight resets
     g.num_resets.set_and_save(g.num_resets+1);
@@ -126,8 +129,7 @@ void Rover::init_ardupilot()
     // init baro before we start the GCS, so that the CLI baro test works
     barometer.init();
 
-    //thermocouple initialise
-    celsius.init();
+
     // we start by assuming USB connected, as we initialed the serial
     // port with SERIAL0_BAUD. check_usb_mux() fixes this if need be.
     usb_connected = true;
