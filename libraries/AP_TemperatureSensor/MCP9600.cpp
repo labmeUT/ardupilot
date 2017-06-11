@@ -8,17 +8,12 @@
 
 extern const AP_HAL::HAL &hal;
 
-//static const uint8_t TSYS01_CMD_RESET       = 0x1E;
-//static const uint8_t TSYS01_CMD_READ_PROM   = 0xA0;
-//static const uint8_t TSYS01_CMD_CONVERT     = 0x40;
 static const uint8_t MCP9600_CMD_READ_ADC    = 0x00;
 
-MCP9600::MCP9600()
-    //_dev(nullptr),
-    //_temperature(0)
-    //_healthy(false)
+MCP9600::MCP9600() :
+    _dev(nullptr),
+    _temperature(0)
 {
-    //memset(&_k, 0, sizeof(_k));
 }
 
 bool MCP9600::init()
