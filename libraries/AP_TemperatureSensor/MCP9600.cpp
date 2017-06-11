@@ -14,54 +14,58 @@ extern const AP_HAL::HAL &hal;
 static const uint8_t MCP9600_CMD_READ_ADC    = 0x00;
 
 MCP9600::MCP9600() :
-    //_dev(nullptr),
-    //_temperature(0),
+    _dev(nullptr),
+    _temperature(0)
     //_healthy(false)
 {
     memset(&_k, 0, sizeof(_k));
 }
 
-/*bool TSYS01::init()
+bool TSYS01::init()
 {
-    _dev = std::move(hal.i2c_mgr->get_device(1, TSYS01_ADDR));
+    _dev = std::move(hal.i2c_mgr->get_device(1, MCP9600_ADDR));
     if (!_dev) {
-        printf("TSYS01 device is null!");
+        printf("MCP9600 device is null!");
         return false;
     }
 
     if (!_dev->get_semaphore()->take(0)) {
-        AP_HAL::panic("PANIC: TSYS01: failed to take serial semaphore for init");
+        AP_HAL::panic("PANIC: MCP9600: failed to take serial semaphore for init");
     }
 
     _dev->set_retries(10);
-
+/*
     if (!_reset()) {
-        printf("TSYS01 reset failed");
+        printf("MCP9600 reset failed");
         _dev->get_semaphore()->give();
         return false;
     }
-
+*/
     hal.scheduler->delay(4);
-
+/*
     if (!_read_prom()) {
-        printf("TSYS01 prom read failed");
+        printf("MCP9600 prom read failed");
         _dev->get_semaphore()->give();
         return false;
     }
-
+*/
+/*
     _convert();
-
+*/
     // lower retries for run
+
     _dev->set_retries(3);
 
     _dev->get_semaphore()->give();
 
     // Request 20Hz update
     // Max conversion time is 9.04 ms
+
     _dev->register_periodic_callback(50 * USEC_PER_MSEC,
-                                     FUNCTOR_BIND_MEMBER(&TSYS01::_timer, void));
+                                     FUNCTOR_BIND_MEMBER(&MCP9600::temperature, void));
+
     return true;
-}*/
+}
 
 /*bool TSYS01::_reset()
 {
@@ -128,7 +132,7 @@ float MCP9600::temperature(void)
     return (val[0] << 8) |  val[1];
 }*/
 
-/*void TSYS01::_timer(void)
+/*void MCP9600::_timer(void)
 {
     uint32_t adc = _read_adc();
     _healthy = adc != 0;
@@ -142,8 +146,8 @@ float MCP9600::temperature(void)
     //printf("\nTemperature: %.2lf C", _temperature);
 
     _convert();
-}*/
-
+}
+*/
 /*void MCP9600::_calculate(uint32_t adc)
 {
     //float adc16 = adc/256;

@@ -14,8 +14,8 @@ class MCP9600 {
 public:
     MCP9600(void);
 
-    //bool init(void);
-    float temperature(void);// { return _temperature; } // temperature in degrees C
+    bool init(void);
+    float temperature(void); { return _temperature; } // temperature in degrees C
     //bool healthy(void) { return _healthy; } // do we have a valid temperature reading?
 
     AP_HAL::OwnPtr<AP_HAL::Device> _dev;
