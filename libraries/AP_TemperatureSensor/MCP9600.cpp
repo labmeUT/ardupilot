@@ -21,7 +21,7 @@ MCP9600::MCP9600() :
     memset(&_k, 0, sizeof(_k));
 }
 
-bool TSYS01::init()
+bool MCP9600::init()
 {
     _dev = std::move(hal.i2c_mgr->get_device(1, MCP9600_ADDR));
     if (!_dev) {

@@ -62,6 +62,8 @@
 #include <AP_L1_Control/AP_L1_Control.h>
 #include <AP_BoardConfig/AP_BoardConfig.h>
 #include <AP_Frsky_Telem/AP_Frsky_Telem.h>
+#include <AP_TemperatureSensor/MCP9600.h>           //Thermocouple library
+
 
 #include "AP_Arming.h"
 #include "compat.h"
@@ -144,6 +146,7 @@ private:
     AP_InertialSensor ins;
     RangeFinder sonar { serial_manager, ROTATION_NONE };
     AP_Button button;
+    MCP9600 celsius;   //thermocouple
 
     // flight modes convenience array
     AP_Int8 *modes;
