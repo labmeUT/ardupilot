@@ -25,17 +25,6 @@
 
 extern const AP_HAL::HAL& hal;
 
-const AP_Param::GroupInfo AP_MotorsTri::var_info[] = {
-    // variables from parent vehicle
-    AP_NESTEDGROUPINFO(AP_MotorsMulticopter, 0),
-
-    // parameters 1 ~ 29 were reserved for tradheli
-    // parameters 30 ~ 39 reserved for tricopter
-    // parameters 40 ~ 49 for single copter and coax copter (these have identical parameter files)
-
-    AP_GROUPEND
-};
-
 // init
 void AP_MotorsTri::init(motor_frame_class frame_class, motor_frame_type frame_type)
 {
@@ -101,32 +90,26 @@ void AP_MotorsTri::output_to_motors()
     switch (_spool_mode) {
         case SHUT_DOWN:
             // sends minimum values out to the motors
-            hal.rcout->cork();
             rc_write(AP_MOTORS_MOT_1, get_pwm_output_min());
             rc_write(AP_MOTORS_MOT_2, get_pwm_output_min());
             rc_write(AP_MOTORS_MOT_4, get_pwm_output_min());
             rc_write(AP_MOTORS_CH_TRI_YAW, _yaw_servo->get_trim());
-            hal.rcout->push();
             break;
         case SPIN_WHEN_ARMED:
             // sends output to motors when armed but not flying
-            hal.rcout->cork();
             rc_write(AP_MOTORS_MOT_1, calc_spin_up_to_pwm());
             rc_write(AP_MOTORS_MOT_2, calc_spin_up_to_pwm());
             rc_write(AP_MOTORS_MOT_4, calc_spin_up_to_pwm());
             rc_write(AP_MOTORS_CH_TRI_YAW, _yaw_servo->get_trim());
-            hal.rcout->push();
             break;
         case SPOOL_UP:
         case THROTTLE_UNLIMITED:
         case SPOOL_DOWN:
             // set motor output based on thrust requests
-            hal.rcout->cork();
             rc_write(AP_MOTORS_MOT_1, calc_thrust_to_pwm(_thrust_right));
             rc_write(AP_MOTORS_MOT_2, calc_thrust_to_pwm(_thrust_left));
             rc_write(AP_MOTORS_MOT_4, calc_thrust_to_pwm(_thrust_rear));
             rc_write(AP_MOTORS_CH_TRI_YAW, calc_yaw_radio_output(_pivot_angle, radians(_yaw_servo_angle_max_deg)));
-            hal.rcout->push();
             break;
     }
 }
@@ -336,4 +319,16 @@ void AP_MotorsTri::thrust_compensation(void)
         _thrust_left  = thrust[1];
         _thrust_rear  = thrust[3];
     }
+}
+
+/*
+  override tricopter tail servo output in output_motor_mask
+ */
+void AP_MotorsTri::output_motor_mask(float thrust, uint8_t mask)
+{
+    // normal multicopter output
+    AP_MotorsMulticopter::output_motor_mask(thrust, mask);
+
+    // and override yaw servo
+    rc_write(AP_MOTORS_CH_TRI_YAW, _yaw_servo->get_trim());
 }

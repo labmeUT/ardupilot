@@ -344,6 +344,8 @@ bool Copter::mode_allows_arming(control_mode_t mode, bool arming_from_gcs)
 // notify_flight_mode - sets notify object based on flight mode.  Only used for OreoLED notify device
 void Copter::notify_flight_mode(control_mode_t mode)
 {
+    AP_Notify::flags.flight_mode = mode;
+
     switch (mode) {
         case AUTO:
         case GUIDED:
@@ -360,6 +362,67 @@ void Copter::notify_flight_mode(control_mode_t mode)
             AP_Notify::flags.autopilot_mode = false;
             break;
     }
+
+    // set flight mode string
+    switch (mode) {
+        case STABILIZE:
+            notify.set_flight_mode_str("STAB");
+            break;
+        case ACRO:
+            notify.set_flight_mode_str("ACRO");
+            break;
+        case ALT_HOLD:
+            notify.set_flight_mode_str("ALTH");
+            break;
+        case AUTO:
+            notify.set_flight_mode_str("AUTO");
+            break;
+        case GUIDED:
+            notify.set_flight_mode_str("GUID");
+            break;
+        case LOITER:
+            notify.set_flight_mode_str("LOIT");
+            break;
+        case RTL:
+            notify.set_flight_mode_str("RTL ");
+            break;
+        case CIRCLE:
+            notify.set_flight_mode_str("CIRC");
+            break;
+        case LAND:
+            notify.set_flight_mode_str("LAND");
+            break;
+        case DRIFT:
+            notify.set_flight_mode_str("DRIF");
+            break;
+        case SPORT:
+            notify.set_flight_mode_str("SPRT");
+            break;
+        case FLIP:
+            notify.set_flight_mode_str("FLIP");
+            break;
+        case AUTOTUNE:
+            notify.set_flight_mode_str("ATUN");
+            break;
+        case POSHOLD:
+            notify.set_flight_mode_str("PHLD");
+            break;
+        case BRAKE:
+            notify.set_flight_mode_str("BRAK");
+            break;
+        case THROW:
+            notify.set_flight_mode_str("THRW");
+            break;
+        case AVOID_ADSB:
+            notify.set_flight_mode_str("AVOI");
+            break;
+        case GUIDED_NOGPS:
+            notify.set_flight_mode_str("GNGP");
+            break;
+        default:
+            notify.set_flight_mode_str("----");
+            break;
+    }
 }
 
 //
@@ -369,58 +432,58 @@ void Copter::print_flight_mode(AP_HAL::BetterStream *port, uint8_t mode)
 {
     switch (mode) {
     case STABILIZE:
-        port->print("STABILIZE");
+        port->printf("STABILIZE");
         break;
     case ACRO:
-        port->print("ACRO");
+        port->printf("ACRO");
         break;
     case ALT_HOLD:
-        port->print("ALT_HOLD");
+        port->printf("ALT_HOLD");
         break;
     case AUTO:
-        port->print("AUTO");
+        port->printf("AUTO");
         break;
     case GUIDED:
-        port->print("GUIDED");
+        port->printf("GUIDED");
         break;
     case LOITER:
-        port->print("LOITER");
+        port->printf("LOITER");
         break;
     case RTL:
-        port->print("RTL");
+        port->printf("RTL");
         break;
     case CIRCLE:
-        port->print("CIRCLE");
+        port->printf("CIRCLE");
         break;
     case LAND:
-        port->print("LAND");
+        port->printf("LAND");
         break;
     case DRIFT:
-        port->print("DRIFT");
+        port->printf("DRIFT");
         break;
     case SPORT:
-        port->print("SPORT");
+        port->printf("SPORT");
         break;
     case FLIP:
-        port->print("FLIP");
+        port->printf("FLIP");
         break;
     case AUTOTUNE:
-        port->print("AUTOTUNE");
+        port->printf("AUTOTUNE");
         break;
     case POSHOLD:
-        port->print("POSHOLD");
+        port->printf("POSHOLD");
         break;
     case BRAKE:
-        port->print("BRAKE");
+        port->printf("BRAKE");
         break;
     case THROW:
-        port->print("THROW");
+        port->printf("THROW");
         break;
     case AVOID_ADSB:
-        port->print("AVOID_ADSB");
+        port->printf("AVOID_ADSB");
         break;
     case GUIDED_NOGPS:
-        port->print("GUIDED_NOGPS");
+        port->printf("GUIDED_NOGPS");
         break;
     default:
         port->printf("Mode(%u)", (unsigned)mode);

@@ -92,7 +92,7 @@ void Rover::init_ardupilot()
     // initialise stats module
     g2.stats.init();
 
-    GCS_MAVLINK::set_dataflash(&DataFlash);
+    gcs().set_dataflash(&DataFlash);
 
     mavlink_system.sysid = g.sysid_this_mav;
 
@@ -100,13 +100,18 @@ void Rover::init_ardupilot()
     serial_manager.init();
 
     // setup first port early to allow BoardConfig to report errors
-    gcs[0].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_MAVLink, 0);
+    gcs_chan[0].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_MAVLink, 0);
 
     // Register mavlink_delay_cb, which will run anytime you have
     // more than 5ms remaining in your call to hal.scheduler->delay
     hal.scheduler->register_delay_callback(mavlink_delay_cb_static, 5);
 
     BoardConfig.init();
+
+    // initialise notify system
+    notify.init(false);
+    AP_Notify::flags.failsafe_battery = false;
+    notify_mode(control_mode);
 
     ServoRelayEvents.set_channel_mask(0xFFF0);
 
@@ -128,7 +133,7 @@ void Rover::init_ardupilot()
 
     // setup telem slots with serial ports
     for (uint8_t i = 1; i < MAVLINK_COMM_NUM_BUFFERS; i++) {
-        gcs[i].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_MAVLink, i);
+        gcs_chan[i].setup_uart(serial_manager, AP_SerialManager::SerialProtocol_MAVLink, i);
     }
 
     // setup frsky telemetry
@@ -142,7 +147,7 @@ void Rover::init_ardupilot()
 
     if (g.compass_enabled == true) {
         if (!compass.init()|| !compass.read()) {
-            cliSerial->println("Compass initialisation failed!");
+            cliSerial->printf("Compass initialisation failed!\n");
             g.compass_enabled = false;
         } else {
             ahrs.set_compass(&compass);
@@ -152,6 +157,9 @@ void Rover::init_ardupilot()
 
     // initialise sonar
     init_sonar();
+
+    // init beacons used for non-gps position estimation
+    init_beacon();
 
     // and baro for EKF
     init_barometer(true);
@@ -177,6 +185,9 @@ void Rover::init_ardupilot()
      */
     hal.scheduler->register_timer_failsafe(failsafe_check_static, 1000);
 
+    // give AHRS the range beacon sensor
+    ahrs.set_beacon(&g2.beacon);
+
 
 #if CLI_ENABLED == ENABLED
     // If the switch is in 'menu' mode, run the main menu.
@@ -187,12 +198,12 @@ void Rover::init_ardupilot()
     //
     if (g.cli_enabled == 1) {
         const char *msg = "\nPress ENTER 3 times to start interactive setup\n";
-        cliSerial->println(msg);
-        if (gcs[1].initialised && (gcs[1].get_uart() != nullptr)) {
-            gcs[1].get_uart()->println(msg);
+        cliSerial->printf("%s\n", msg);
+        if (gcs_chan[1].initialised && (gcs_chan[1].get_uart() != nullptr)) {
+            gcs_chan[1].get_uart()->printf("%s\n", msg);
         }
-        if (num_gcs > 2 && gcs[2].initialised && (gcs[2].get_uart() != nullptr)) {
-            gcs[2].get_uart()->println(msg);
+        if (num_gcs > 2 && gcs_chan[2].initialised && (gcs_chan[2].get_uart() != nullptr)) {
+            gcs_chan[2].get_uart()->printf("%s\n", msg);
         }
     }
 #endif
@@ -206,6 +217,9 @@ void Rover::init_ardupilot()
     // set the correct flight mode
     // ---------------------------
     reset_control_switch();
+
+    // disable safety if requested
+    BoardConfig.init_safety();
 }
 
 //*********************************************************************************
@@ -235,6 +249,12 @@ void Rover::startup_ground(void)
     // initialise mission library
     mission.init();
 
+    // initialise DataFlash library
+    DataFlash.set_mission(&mission);
+    DataFlash.setVehicle_Startup_Log_Writer(
+        FUNCTOR_BIND(&rover, &Rover::Log_Write_Vehicle_Startup_Messages, void)
+        );
+
     // we don't want writes to the serial port to cause us to pause
     // so set serial ports non-blocking once we are ready to drive
     serial_manager.set_blocking_writes_all(false);
@@ -263,19 +283,25 @@ void Rover::set_reverse(bool reverse)
 
 void Rover::set_mode(enum mode mode)
 {
-    if (control_mode == mode){
+    if (control_mode == mode) {
         // don't switch modes if we are already in the correct mode.
         return;
     }
 
-    // If we are changing out of AUTO mode reset the loiter timer
+    // If we are changing out of AUTO mode reset the loiter timer and stop current mission
     if (control_mode == AUTO) {
         loiter_start_time = 0;
+        if (mission.state() == AP_Mission::MISSION_RUNNING) {
+            mission.stop();
+        }
     }
 
     control_mode = mode;
     throttle_last = 0;
     throttle = 500;
+    if (!in_auto_reverse) {
+        set_reverse(false);
+    }
     g.pidSpeedThrottle.reset_I();
 
 #if FRSKY_TELEM_ENABLED == ENABLED
@@ -307,13 +333,11 @@ void Rover::set_mode(enum mode mode)
 
     case GUIDED:
         auto_throttle_mode = true;
-        rtl_complete = false;
         /*
            when entering guided mode we set the target as the current
            location. This matches the behaviour of the copter code.
            */
-        guided_WP = current_loc;
-        set_guided_WP();
+        set_guided_WP(current_loc);
         break;
 
     default:
@@ -325,6 +349,8 @@ void Rover::set_mode(enum mode mode)
     if (should_log(MASK_LOG_MODE)) {
         DataFlash.Log_Write_Mode(control_mode);
     }
+
+    notify_mode(control_mode);
 }
 
 /*
@@ -374,7 +400,7 @@ void Rover::failsafe_trigger(uint8_t failsafe_type, bool on)
         control_mode != RTL &&
         control_mode != HOLD) {
         failsafe.triggered = failsafe.bits;
-        gcs_send_text_fmt(MAV_SEVERITY_WARNING, "Failsafe trigger 0x%x", (unsigned)failsafe.triggered);
+        gcs_send_text_fmt(MAV_SEVERITY_WARNING, "Failsafe trigger 0x%x", static_cast<uint32_t>(failsafe.triggered));
         switch (g.fs_action) {
         case 0:
             break;
@@ -436,25 +462,61 @@ void Rover::print_mode(AP_HAL::BetterStream *port, uint8_t mode)
 {
     switch (mode) {
     case MANUAL:
-        port->print("Manual");
+        port->printf("Manual");
         break;
     case HOLD:
-        port->print("HOLD");
+        port->printf("HOLD");
         break;
     case LEARNING:
-        port->print("Learning");
+        port->printf("Learning");
         break;
     case STEERING:
-        port->print("Steering");
+        port->printf("Steering");
         break;
     case AUTO:
-        port->print("AUTO");
+        port->printf("AUTO");
         break;
     case RTL:
-        port->print("RTL");
+        port->printf("RTL");
         break;
     default:
-        port->printf("Mode(%u)", (unsigned)mode);
+        port->printf("Mode(%u)", static_cast<uint32_t>(mode));
+        break;
+    }
+}
+
+// update notify with mode change
+void Rover::notify_mode(enum mode new_mode)
+{
+    notify.flags.flight_mode = new_mode;
+
+    switch (new_mode) {
+    case MANUAL:
+        notify.set_flight_mode_str("MANU");
+        break;
+    case LEARNING:
+        notify.set_flight_mode_str("LERN");
+        break;
+    case STEERING:
+        notify.set_flight_mode_str("STER");
+        break;
+    case HOLD:
+        notify.set_flight_mode_str("HOLD");
+        break;
+    case AUTO:
+        notify.set_flight_mode_str("AUTO");
+        break;
+    case RTL:
+        notify.set_flight_mode_str("RTL");
+        break;
+    case GUIDED:
+        notify.set_flight_mode_str("GUID");
+        break;
+    case INITIALISING:
+        notify.set_flight_mode_str("INIT");
+        break;
+    default:
+        notify.set_flight_mode_str("----");
         break;
     }
 }
@@ -464,7 +526,7 @@ void Rover::print_mode(AP_HAL::BetterStream *port, uint8_t mode)
  */
 uint8_t Rover::check_digital_pin(uint8_t pin)
 {
-    int8_t dpin = hal.gpio->analogPinToDigitalPin(pin);
+    const int8_t dpin = hal.gpio->analogPinToDigitalPin(pin);
     if (dpin == -1) {
         return 0;
     }
@@ -485,7 +547,7 @@ bool Rover::should_log(uint32_t mask)
     if (!(mask & g.log_bitmask) || in_mavlink_delay) {
         return false;
     }
-    bool ret = hal.util->get_soft_armed() || DataFlash.log_while_disarmed();
+    const bool ret = hal.util->get_soft_armed() || DataFlash.log_while_disarmed();
     if (ret && !DataFlash.logging_started() && !in_log_download) {
         start_logging();
     }

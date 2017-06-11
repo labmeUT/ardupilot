@@ -6,6 +6,9 @@
 #include <AP_HAL/AP_HAL.h>
 #include <RC_Channel/RC_Channel.h>
 
+void setup();
+void loop();
+
 const AP_HAL::HAL& hal = AP_HAL::get_HAL();
 
 #define NUM_CHANNELS 8
@@ -19,7 +22,7 @@ static void print_radio_values();
 
 void setup()
 {
-    hal.console->println("ArduPilot RC Channel test");
+    hal.console->printf("ArduPilot RC Channel test\n");
 
     rc = RC_Channels::rc_channel(CH_1);
     

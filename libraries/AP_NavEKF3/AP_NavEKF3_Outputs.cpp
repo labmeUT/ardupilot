@@ -1,5 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 #include <AP_HAL/AP_HAL.h>
 
 #if HAL_CPU_CLASS >= HAL_CPU_CLASS_150
@@ -8,8 +6,6 @@
 #include "AP_NavEKF3_core.h"
 #include <AP_AHRS/AP_AHRS.h>
 #include <AP_Vehicle/AP_Vehicle.h>
-
-#include <stdio.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -69,8 +65,21 @@ void NavEKF3_core::getFlowDebug(float &varFlow, float &gndOffset, float &flowInn
     gndOffsetErr = sqrtf(Popt); // note Popt is constrained to be non-negative in EstimateTerrainOffset()
 }
 
+// return data for debugging body frame odometry fusion
+uint32_t NavEKF3_core::getBodyFrameOdomDebug(Vector3f &velInnov, Vector3f &velInnovVar)
+{
+    velInnov.x = innovBodyVel[0];
+    velInnov.y = innovBodyVel[1];
+    velInnov.z = innovBodyVel[2];
+    velInnovVar.x = varInnovBodyVel[0];
+    velInnovVar.y = varInnovBodyVel[1];
+    velInnovVar.z = varInnovBodyVel[2];
+    return bodyOdmDataDelayed.time_ms;
+}
+
 // return data for debugging range beacon fusion one beacon at a time, incrementing the beacon index after each call
-bool NavEKF3_core::getRangeBeaconDebug(uint8_t &ID, float &rng, float &innov, float &innovVar, float &testRatio, Vector3f &beaconPosNED, float &offsetHigh, float &offsetLow)
+bool NavEKF3_core::getRangeBeaconDebug(uint8_t &ID, float &rng, float &innov, float &innovVar, float &testRatio, Vector3f &beaconPosNED,
+                                       float &offsetHigh, float &offsetLow, Vector3f &posNED)
 {
     // if the states have not been initialised or we have not received any beacon updates then return zeros
     if (!statesInitialised || N_beacons == 0) {
@@ -88,9 +97,10 @@ bool NavEKF3_core::getRangeBeaconDebug(uint8_t &ID, float &rng, float &innov, fl
     innov = rngBcnFusionReport[rngBcnFuseDataReportIndex].innov;                // range innovation (m)
     innovVar = rngBcnFusionReport[rngBcnFuseDataReportIndex].innovVar;          // innovation variance (m^2)
     testRatio = rngBcnFusionReport[rngBcnFuseDataReportIndex].testRatio;        // innovation consistency test ratio
-    beaconPosNED = rngBcnFusionReport[rngBcnFuseDataReportIndex].beaconPosNED;  // beacon NED position
-    offsetHigh = bcnPosDownOffsetMax;                                           // beacon system vertical pos offset upper estimate
-    offsetLow = bcnPosDownOffsetMin;                                            // beacon system vertical pos offset lower estimate
+    beaconPosNED = rngBcnFusionReport[rngBcnFuseDataReportIndex].beaconPosNED;  // beacon receiver NED position (m)
+    offsetHigh = bcnPosDownOffsetMax;                                           // beacon system vertical pos offset upper estimate (m)
+    offsetLow = bcnPosDownOffsetMin;                                            // beacon system vertical pos offset lower estimate (m)
+    posNED = receiverPos;                                                       // beacon system NED offset (m)
     rngBcnFuseDataReportIndex++;
     return true;
 }
@@ -103,7 +113,7 @@ bool NavEKF3_core::getHeightControlLimit(float &height) const
     // only ask for limiting if we are doing optical flow navigation
     if (frontend->_fusionModeGPS == 3) {
         // If are doing optical flow nav, ensure the height above ground is within range finder limits after accounting for vehicle tilt and control errors
-        height = MAX(float(frontend->_rng.max_distance_cm()) * 0.007f - 1.0f, 1.0f);
+        height = MAX(float(frontend->_rng.max_distance_cm_orient(ROTATION_PITCH_270)) * 0.007f - 1.0f, 1.0f);
         // If we are are not using the range finder as the height reference, then compensate for the difference between terrain and EKF origin
         if (frontend->_altSource != 1) {
             height -= terrainState;
@@ -339,7 +349,13 @@ bool NavEKF3_core::getLLH(struct Location &loc) const
 // return the scale factor to be applied to navigation velocity gains to compensate for increase in velocity noise with height when using optical flow
 void NavEKF3_core::getEkfControlLimits(float &ekfGndSpdLimit, float &ekfNavVelGainScaler) const
 {
-    if (PV_AidingMode == AID_RELATIVE) {
+    // If in the last 10 seconds we have received flow data and no odometry data, then we are relying on optical flow
+    bool relyingOnFlowData = (imuSampleTime_ms - prevBodyVelFuseTime_ms > 1000)
+            && (imuSampleTime_ms - flowValidMeaTime_ms <= 10000);
+
+    // If relying on optical flow, limit speed to prevent sensor limit being exceeded and adjust
+    // nav gains to prevent body rate feedback into flow rates destabilising the control loop
+    if (PV_AidingMode == AID_RELATIVE && relyingOnFlowData) {
         // allow 1.0 rad/sec margin for angular motion
         ekfGndSpdLimit = MAX((frontend->_maxFlowRate - 1.0f), 0.0f) * MAX((terrainState - stateStruct.position[2]), rngOnGnd);
         // use standard gains up to 5.0 metres height and reduce above that
@@ -492,6 +508,7 @@ void  NavEKF3_core::getFilterGpsStatus(nav_gps_status &faults) const
     // set individual flags
     faults.flags.bad_sAcc           = gpsCheckStatus.bad_sAcc; // reported speed accuracy is insufficient
     faults.flags.bad_hAcc           = gpsCheckStatus.bad_hAcc; // reported horizontal position accuracy is insufficient
+    faults.flags.bad_vAcc           = gpsCheckStatus.bad_vAcc; // reported vertical position accuracy is insufficient
     faults.flags.bad_yaw            = gpsCheckStatus.bad_yaw; // EKF heading accuracy is too large for GPS use
     faults.flags.bad_sats           = gpsCheckStatus.bad_sats; // reported number of satellites is insufficient
     faults.flags.bad_horiz_drift    = gpsCheckStatus.bad_horiz_drift; // GPS horizontal drift is too large to start using GPS (check assumes vehicle is static)

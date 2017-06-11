@@ -227,7 +227,7 @@ bool AP_Compass_LSM303D::_read_sample()
     } rx;
 
     if (_register_read(ADDR_CTRL_REG7) != _reg7_expected) {
-        hal.console->println("LSM303D _read_data_transaction_accel: _reg7_expected unexpected");
+        hal.console->printf("LSM303D _read_data_transaction_accel: _reg7_expected unexpected\n");
         return false;
     }
 
@@ -327,7 +327,7 @@ bool AP_Compass_LSM303D::_hardware_init()
         }
     }
     if (tries == 5) {
-        hal.console->println("Failed to boot LSM303D 5 times");
+        hal.console->printf("Failed to boot LSM303D 5 times\n");
         goto fail_tries;
     }
 
@@ -360,7 +360,7 @@ void AP_Compass_LSM303D::_update()
     // correct raw_field for known errors
     correct_field(raw_field, _compass_instance);
 
-    if (_sem->take(0)) {
+    if (_sem->take(HAL_SEMAPHORE_BLOCK_FOREVER)) {
         _mag_x_accum += raw_field.x;
         _mag_y_accum += raw_field.y;
         _mag_z_accum += raw_field.z;

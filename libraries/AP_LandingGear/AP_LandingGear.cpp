@@ -10,18 +10,18 @@ const AP_Param::GroupInfo AP_LandingGear::var_info[] = {
 
     // @Param: SERVO_RTRACT
     // @DisplayName: Landing Gear Servo Retracted PWM Value
-    // @Description: Servo PWM value when landing gear is retracted
+    // @Description: Servo PWM value in microseconds when landing gear is retracted
     // @Range: 1000 2000
-    // @Units: pwm
+    // @Units: PWM
     // @Increment: 1
     // @User: Standard
     AP_GROUPINFO("SERVO_RTRACT", 0, AP_LandingGear, _servo_retract_pwm, AP_LANDINGGEAR_SERVO_RETRACT_PWM_DEFAULT),
 
     // @Param: SERVO_DEPLOY
     // @DisplayName: Landing Gear Servo Deployed PWM Value
-    // @Description: Servo PWM value when landing gear is deployed
+    // @Description: Servo PWM value in microseconds when landing gear is deployed
     // @Range: 1000 2000
-    // @Units: pwm
+    // @Units: PWM
     // @Increment: 1
     // @User: Standard
     AP_GROUPINFO("SERVO_DEPLOY", 1, AP_LandingGear, _servo_deploy_pwm, AP_LANDINGGEAR_SERVO_DEPLOY_PWM_DEFAULT),
@@ -61,7 +61,7 @@ void AP_LandingGear::update()
     // if there is a force deploy active, disable retraction, then reset force deploy to consume it
     // gear will be deployed automatically because _retract_enabled is false.
     // this will disable retract switch until it is cycled through deploy position
-    if ( _force_deploy){
+    if (_force_deploy){
             enable(false);
             force_deploy(false);
         }

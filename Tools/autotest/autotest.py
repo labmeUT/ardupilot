@@ -19,6 +19,7 @@ import apmrover2
 import arducopter
 import arduplane
 import quadplane
+import ardusub
 from pysim import util
 
 os.environ['PYTHONUNBUFFERED'] = '1'
@@ -167,6 +168,7 @@ parser.add_option("--valgrind", default=False, action='store_true', help='run Ar
 parser.add_option("--gdb", default=False, action='store_true', help='run ArduPilot binaries under gdb')
 parser.add_option("--debug", default=False, action='store_true', help='make built binaries debug binaries')
 parser.add_option("-j", default=None, type='int', help='build CPUs')
+parser.add_option("--frame", type='string', default=None, help='specify frame type')
 
 opts, args = parser.parse_args()
 
@@ -196,6 +198,10 @@ steps = [
     'fly.CopterAVC',
 
     'build.AntennaTracker',
+    
+    'build.ArduSub',
+    'defaults.ArduSub',
+    'dive.ArduSub',
 
     'convertgpx',
     ]
@@ -233,6 +239,8 @@ def binary_path(step, debug=False):
         binary_name = "arducopter-heli"
     elif step.find("QuadPlane") != -1:
         binary_name = "arduplane"
+    elif step.find("ArduSub") != -1:
+        binary_name = "ardusub"
     else:
         # cope with builds that don't have a specific binary
         return None
@@ -275,6 +283,9 @@ def run_step(step):
 
     if step == 'build.Helicopter':
         return util.build_SITL('bin/arducopter-heli', j=opts.j, debug=opts.debug)
+    
+    if step == 'build.ArduSub':
+        return util.build_SITL('bin/ardusub', j=opts.j, debug=opts.debug)
 
     binary = binary_path(step, debug=opts.debug)
 
@@ -286,9 +297,12 @@ def run_step(step):
 
     if step == 'defaults.APMrover2':
         return get_default_params('APMrover2', binary)
+    
+    if step == 'defaults.ArduSub':
+        return get_default_params('ArduSub', binary)
 
     if step == 'fly.ArduCopter':
-        return arducopter.fly_ArduCopter(binary, viewerip=opts.viewerip, use_map=opts.map, valgrind=opts.valgrind, gdb=opts.gdb)
+        return arducopter.fly_ArduCopter(binary, viewerip=opts.viewerip, use_map=opts.map, valgrind=opts.valgrind, gdb=opts.gdb, frame=opts.frame)
 
     if step == 'fly.CopterAVC':
         return arducopter.fly_CopterAVC(binary, viewerip=opts.viewerip, use_map=opts.map, valgrind=opts.valgrind, gdb=opts.gdb)
@@ -301,6 +315,9 @@ def run_step(step):
 
     if step == 'drive.APMrover2':
         return apmrover2.drive_APMrover2(binary, viewerip=opts.viewerip, use_map=opts.map, valgrind=opts.valgrind, gdb=opts.gdb)
+    
+    if step == 'dive.ArduSub':
+        return ardusub.dive_ArduSub(binary, viewerip=opts.viewerip, use_map=opts.map, valgrind=opts.valgrind, gdb=opts.gdb)
 
     if step == 'build.All':
         return build_all()
@@ -420,10 +437,18 @@ def write_fullresults():
     results.addfile('AntennaTracker code size', 'AntennaTracker.sizes.txt')
     results.addfile('AntennaTracker stack sizes', 'AntennaTracker.framesizes.txt')
     results.addglob("AntennaTracker ELF", 'AntennaTracker.elf')
+    results.addfile('ArduSub build log', 'ArduSub.txt')
+    results.addfile('ArduSub code size', 'ArduSub.sizes.txt')
+    results.addfile('ArduSub stack sizes', 'ArduSub.framesizes.txt')
+    results.addfile('ArduSub defaults', 'default_params/ArduSub-defaults.parm')
+    results.addglob("ArduSub log", 'ArduSub-*.BIN')
+    results.addglob("ArduSub core", 'ArduSub.core')
+    results.addglob("ArduSub ELF", 'ArduSub.elf')
     results.addglob('APM:Libraries documentation', 'docs/libraries/index.html')
     results.addglob('APM:Plane documentation', 'docs/ArduPlane/index.html')
     results.addglob('APM:Copter documentation', 'docs/ArduCopter/index.html')
     results.addglob('APM:Rover documentation', 'docs/APMrover2/index.html')
+    results.addglob('APM:Sub documentation', 'docs/ArduSub/index.html')
     results.addglobimage("Flight Track", '*.png')
 
     write_webresults(results)

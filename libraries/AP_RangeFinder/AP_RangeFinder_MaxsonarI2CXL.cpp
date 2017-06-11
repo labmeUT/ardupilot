@@ -36,7 +36,7 @@ extern const AP_HAL::HAL& hal;
    already know that we should setup the rangefinder
 */
 AP_RangeFinder_MaxsonarI2CXL::AP_RangeFinder_MaxsonarI2CXL(RangeFinder &_ranger, uint8_t instance, RangeFinder::RangeFinder_State &_state)
-    : AP_RangeFinder_Backend(_ranger, instance, _state)
+    : AP_RangeFinder_Backend(_ranger, instance, _state, MAV_DISTANCE_SENSOR_ULTRASOUND)
     , _dev(hal.i2c_mgr->get_device(1, AP_RANGE_FINDER_MAXSONARI2CXL_DEFAULT_ADDR))
 {
 }
@@ -68,7 +68,7 @@ AP_RangeFinder_Backend *AP_RangeFinder_MaxsonarI2CXL::detect(RangeFinder &_range
  */
 bool AP_RangeFinder_MaxsonarI2CXL::_init(void)
 {
-    if (!_dev->get_semaphore()->take(0)) {
+    if (!_dev->get_semaphore()->take(HAL_SEMAPHORE_BLOCK_FOREVER)) {
         return false;
     }
     
@@ -130,7 +130,7 @@ void AP_RangeFinder_MaxsonarI2CXL::_timer(void)
 {
     uint16_t d;
     if (get_reading(d)) {
-        if (_sem->take(0)) {
+        if (_sem->take(HAL_SEMAPHORE_BLOCK_FOREVER)) {
             distance = d;
             new_distance = true;
             _sem->give();

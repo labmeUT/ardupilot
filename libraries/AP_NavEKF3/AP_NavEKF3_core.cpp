@@ -1,5 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 #include <AP_HAL/AP_HAL.h>
 
 #if HAL_CPU_CLASS >= HAL_CPU_CLASS_150
@@ -8,8 +6,7 @@
 #include "AP_NavEKF3_core.h"
 #include <AP_AHRS/AP_AHRS.h>
 #include <AP_Vehicle/AP_Vehicle.h>
-
-#include <stdio.h>
+#include <GCS_MAVLink/GCS.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -17,25 +14,28 @@ extern const AP_HAL::HAL& hal;
 NavEKF3_core::NavEKF3_core(void) :
     stateStruct(*reinterpret_cast<struct state_elements *>(&statesArray)),
 
-    _perf_UpdateFilter(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_UpdateFilter")),
-    _perf_CovariancePrediction(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_CovariancePrediction")),
-    _perf_FuseVelPosNED(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_FuseVelPosNED")),
-    _perf_FuseMagnetometer(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_FuseMagnetometer")),
-    _perf_FuseAirspeed(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_FuseAirspeed")),
-    _perf_FuseSideslip(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_FuseSideslip")),
-    _perf_TerrainOffset(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_TerrainOffset")),
-    _perf_FuseOptFlow(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_FuseOptFlow"))
+    _perf_UpdateFilter(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_UpdateFilter")),
+    _perf_CovariancePrediction(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_CovariancePrediction")),
+    _perf_FuseVelPosNED(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_FuseVelPosNED")),
+    _perf_FuseMagnetometer(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_FuseMagnetometer")),
+    _perf_FuseAirspeed(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_FuseAirspeed")),
+    _perf_FuseSideslip(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_FuseSideslip")),
+    _perf_TerrainOffset(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_TerrainOffset")),
+    _perf_FuseOptFlow(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_FuseOptFlow")),
+    _perf_FuseBodyOdom(hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_FuseBodyOdom"))
 {
-    _perf_test[0] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_Test0");
-    _perf_test[1] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_Test1");
-    _perf_test[2] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_Test2");
-    _perf_test[3] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_Test3");
-    _perf_test[4] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_Test4");
-    _perf_test[5] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_Test5");
-    _perf_test[6] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_Test6");
-    _perf_test[7] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_Test7");
-    _perf_test[8] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_Test8");
-    _perf_test[9] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK2_Test9");
+    _perf_test[0] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_Test0");
+    _perf_test[1] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_Test1");
+    _perf_test[2] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_Test2");
+    _perf_test[3] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_Test3");
+    _perf_test[4] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_Test4");
+    _perf_test[5] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_Test5");
+    _perf_test[6] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_Test6");
+    _perf_test[7] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_Test7");
+    _perf_test[8] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_Test8");
+    _perf_test[9] = hal.util->perf_alloc(AP_HAL::Util::PC_ELAPSED, "EK3_Test9");
+    firstInitTime_ms = 0;
+    lastInitFailReport_ms = 0;
 }
 
 // setup this core backend
@@ -47,34 +47,85 @@ bool NavEKF3_core::setup_core(NavEKF3 *_frontend, uint8_t _imu_index, uint8_t _c
     _ahrs = frontend->_ahrs;
 
     /*
-      the imu_buffer_length needs to cope with a 260ms delay at a
-      maximum fusion rate of 100Hz. Non-imu data coming in at faster
-      than 100Hz is downsampled. For 50Hz main loop rate we need a
-      shorter buffer.
+      The imu_buffer_length needs to cope with the worst case sensor delay at the
+      maximum fusion rate of 100Hz. Non-imu data coming in at faster than 100Hz is
+      downsampled. For 50Hz main loop rate we need a shorter buffer.
      */
-    if (_ahrs->get_ins().get_sample_rate() < 100) {
-        imu_buffer_length = 13;
+
+    // Calculate the expected EKF time step
+    if (_ahrs->get_ins().get_sample_rate() > 0) {
+        dtEkfAvg = 1.0f / _ahrs->get_ins().get_sample_rate();
+        dtEkfAvg = MAX(dtEkfAvg,EKF_TARGET_DT);
     } else {
-        // maximum 260 msec delay at 100 Hz fusion rate
-        imu_buffer_length = 26;
-    }
-    if(!storedGPS.init(OBS_BUFFER_LENGTH)) {
         return false;
     }
-    if(!storedMag.init(OBS_BUFFER_LENGTH)) {
+
+    // find the maximum time delay for all potential sensors
+    uint16_t maxTimeDelay_ms = MAX(_frontend->_hgtDelay_ms ,
+            MAX(_frontend->_flowDelay_ms ,
+                MAX(_frontend->_rngBcnDelay_ms ,
+                    MAX(_frontend->magDelay_ms ,
+                        (uint16_t)(EKF_TARGET_DT_MS)
+                                  ))));
+
+    // GPS sensing can have large delays and should not be included if disabled
+    if (_frontend->_fusionModeGPS != 3) {
+        // Wait for the configuration of all GPS units to be confirmed. Until this has occurred the GPS driver cannot provide a correct time delay
+        if (!_ahrs->get_gps().all_configured()) {
+            if (AP_HAL::millis() - lastInitFailReport_ms > 10000) {
+                lastInitFailReport_ms = AP_HAL::millis();
+                // provide an escalating series of messages
+                if (AP_HAL::millis() > 30000) {
+                    GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_ERROR, "EKF3 waiting for GPS config data");
+                } else if (AP_HAL::millis() > 15000) {
+                    GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_WARNING, "EKF3 waiting for GPS config data");
+                } else  {
+                    GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_INFO, "EKF3 waiting for GPS config data");
+                }
+            }
+            return false;
+        }
+        // limit the time delay value from the GPS library to a max of 250 msec which is the max value the EKF has been tested for.
+        maxTimeDelay_ms = MAX(maxTimeDelay_ms , MIN((uint16_t)(_ahrs->get_gps().get_lag() * 1000.0f),250));
+    }
+
+    // airspeed sensing can have large delays and should not be included if disabled
+    if (_ahrs->airspeed_sensor_enabled()) {
+        maxTimeDelay_ms = MAX(maxTimeDelay_ms , _frontend->tasDelay_ms);
+    }
+
+    // calculate the IMU buffer length required to accommodate the maximum delay with some allowance for jitter
+    imu_buffer_length = (maxTimeDelay_ms / (uint16_t)(EKF_TARGET_DT_MS)) + 1;
+
+    // set the observation buffer length to handle the minimum time of arrival between observations in combination
+    // with the worst case delay from current time to ekf fusion time
+    // allow for worst case 50% extension of the ekf fusion time horizon delay due to timing jitter
+    uint16_t ekf_delay_ms = maxTimeDelay_ms + (int)(ceil((float)maxTimeDelay_ms * 0.5f));
+    obs_buffer_length = (ekf_delay_ms / _frontend->sensorIntervalMin_ms) + 1;
+
+    // limit to be no longer than the IMU buffer (we can't process data faster than the EKF prediction rate)
+    obs_buffer_length = MIN(obs_buffer_length,imu_buffer_length);
+
+    if(!storedGPS.init(obs_buffer_length)) {
         return false;
     }
-    if(!storedBaro.init(OBS_BUFFER_LENGTH)) {
+    if(!storedMag.init(obs_buffer_length)) {
         return false;
     }
-    if(!storedTAS.init(OBS_BUFFER_LENGTH)) {
+    if(!storedBaro.init(obs_buffer_length)) {
         return false;
     }
-    if(!storedOF.init(OBS_BUFFER_LENGTH)) {
+    if(!storedTAS.init(obs_buffer_length)) {
         return false;
     }
-    // Note: the use of dual range finders potentially doubles the amount of to be stored
-    if(!storedRange.init(2*OBS_BUFFER_LENGTH)) {
+    if(!storedOF.init(obs_buffer_length)) {
+        return false;
+    }
+    if(!storedBodyOdm.init(obs_buffer_length)) {
+        return false;
+    }
+    // Note: the use of dual range finders potentially doubles the amount of data to be stored
+    if(!storedRange.init(MIN(2*obs_buffer_length , imu_buffer_length))) {
         return false;
     }
     // Note: range beacon data is read one beacon at a time and can arrive at a high rate
@@ -87,7 +138,7 @@ bool NavEKF3_core::setup_core(NavEKF3 *_frontend, uint8_t _imu_index, uint8_t _c
     if(!storedOutput.init(imu_buffer_length)) {
         return false;
     }
-
+    GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_INFO, "EKF3 IMU%u buffers, IMU=%u , OBS=%u , dt=%6.4f",(unsigned)imu_index,(unsigned)imu_buffer_length,(unsigned)obs_buffer_length,(double)dtEkfAvg);
     return true;
 }
     
@@ -102,7 +153,7 @@ void NavEKF3_core::InitialiseVariables()
     // calculate the nominal filter update rate
     const AP_InertialSensor &ins = _ahrs->get_ins();
     localFilterTimeStep_ms = (uint8_t)(1000*ins.get_loop_delta_t());
-    localFilterTimeStep_ms = MAX(localFilterTimeStep_ms,10);
+    localFilterTimeStep_ms = MAX(localFilterTimeStep_ms, (uint8_t)EKF_TARGET_DT_MS);
 
     // initialise time stamps
     imuSampleTime_ms = frontend->imuSampleTime_us / 1000;
@@ -147,7 +198,7 @@ void NavEKF3_core::InitialiseVariables()
     badIMUdata = false;
     finalInflightYawInit = false;
     finalInflightMagInit = false;
-    dtIMUavg = 0.0025f;
+    dtIMUavg = ins.get_loop_delta_t();
     dtEkfAvg = EKF_TARGET_DT;
     dt = 0;
     velDotNEDfilt.zero();
@@ -200,7 +251,7 @@ void NavEKF3_core::InitialiseVariables()
     baroStoreIndex = 0;
     rangeStoreIndex = 0;
     magStoreIndex = 0;
-    gpsStoreIndex = 0;
+    last_gps_idx = 0;
     tasStoreIndex = 0;
     ofStoreIndex = 0;
     delAngCorrection.zero();
@@ -230,6 +281,7 @@ void NavEKF3_core::InitialiseVariables()
     posDown = 0.0f;
     posVelFusionDelayed = false;
     optFlowFusionDelayed = false;
+    flowFusionActive = false;
     airSpdFusionDelayed = false;
     sideSlipFusionDelayed = false;
     posResetNE.zero();
@@ -265,6 +317,8 @@ void NavEKF3_core::InitialiseVariables()
     ekfOriginHgtVar = 0.0f;
     velOffsetNED.zero();
     posOffsetNED.zero();
+    posResetSource = DEFAULT;
+    velResetSource = DEFAULT;
 
     // range beacon fusion variables
     memset(&rngBcnDataNew, 0, sizeof(rngBcnDataNew));
@@ -294,7 +348,6 @@ void NavEKF3_core::InitialiseVariables()
     N_beacons = 0;
     maxBcnPosD = 0.0f;
     minBcnPosD = 0.0f;
-    bcnPosOffset = 0.0f;
     bcnPosDownOffsetMax = 0.0f;
     bcnPosOffsetMaxVar = 0.0f;
     OffsetMaxInnovFilt = 0.0f;
@@ -303,6 +356,21 @@ void NavEKF3_core::InitialiseVariables()
     OffsetMinInnovFilt = 0.0f;
     rngBcnFuseDataReportIndex = 0;
     memset(&rngBcnFusionReport, 0, sizeof(rngBcnFusionReport));
+    bcnPosOffsetNED.zero();
+    bcnOriginEstInit = false;
+
+    // body frame displacement fusion
+    memset(&bodyOdmDataNew, 0, sizeof(bodyOdmDataNew));
+    memset(&bodyOdmDataDelayed, 0, sizeof(bodyOdmDataDelayed));
+    bodyOdmStoreIndex = 0;
+    lastbodyVelPassTime_ms = 0;
+    memset(&bodyVelTestRatio, 0, sizeof(bodyVelTestRatio));
+    memset(&varInnovBodyVel, 0, sizeof(varInnovBodyVel));
+    memset(&innovBodyVel, 0, sizeof(innovBodyVel));
+    prevBodyVelFuseTime_ms = 0;
+    bodyOdmMeasTime_ms = 0;
+    bodyVelFusionDelayed = false;
+    bodyVelFusionActive = false;
 
     // zero data buffers
     storedIMU.reset();
@@ -313,6 +381,7 @@ void NavEKF3_core::InitialiseVariables()
     storedRange.reset();
     storedOutput.reset();
     storedRangeBeacon.reset();
+    storedBodyOdm.reset();
 }
 
 // Initialise the states from accelerometer and magnetometer data (if present)
@@ -325,23 +394,28 @@ bool NavEKF3_core::InitialiseFilterBootstrap(void)
         return false;
     }
 
+    // read all the sensors required to start the EKF the states
+    readIMUData();
+    readMagData();
+    readGpsData();
+    readBaroData();
+
+    // accumulate enough sensor data to fill the buffers
+    if (firstInitTime_ms == 0) {
+        firstInitTime_ms = imuSampleTime_ms;
+        return false;
+    } else if (imuSampleTime_ms - firstInitTime_ms < 1000) {
+        return false;
+    }
+
     // set re-used variables to zero
     InitialiseVariables();
-
-    // Initialise IMU data
-    dtIMUavg = _ahrs->get_ins().get_loop_delta_t();
-    readIMUData();
-    storedIMU.reset_history(imuDataNew);
-    imuDataDelayed = imuDataNew;
 
     // acceleration vector in XYZ body axes measured by the IMU (m/s^2)
     Vector3f initAccVec;
 
     // TODO we should average accel readings over several cycles
     initAccVec = _ahrs->get_ins().get_accel(imu_index);
-
-    // read the magnetometer data
-    readMagData();
 
     // normalise the acceleration vector
     float pitch=0, roll=0;
@@ -369,13 +443,9 @@ bool NavEKF3_core::InitialiseFilterBootstrap(void)
     stateStruct.earth_magfield.zero();
     stateStruct.body_magfield.zero();
 
-    // read the GPS and set the position and velocity states
-    readGpsData();
+    // set the position, velocity and height
     ResetVelocity();
     ResetPosition();
-
-    // read the barometer and set the height state
-    readBaroData();
     ResetHeight();
 
     // define Earth rotation vector in the NED navigation frame
@@ -384,11 +454,12 @@ bool NavEKF3_core::InitialiseFilterBootstrap(void)
     // initialise the covariance matrix
     CovarianceInit();
 
-    // reset output states
+    // reset the output predictor states
     StoreOutputReset();
 
     // set to true now that states have be initialised
     statesInitialised = true;
+    GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_INFO, "EKF3 IMU%u initialised",(unsigned)imu_index);
 
     return true;
 }
@@ -397,13 +468,7 @@ bool NavEKF3_core::InitialiseFilterBootstrap(void)
 void NavEKF3_core::CovarianceInit()
 {
     // zero the matrix
-    for (uint8_t i=1; i<=stateIndexLim; i++)
-    {
-        for (uint8_t j=0; j<=stateIndexLim; j++)
-        {
-            P[i][j] = 0.0f;
-        }
-    }
+    memset(P, 0, sizeof(P));
 
     // define the initial angle uncertainty as variances for a rotation vector
     Vector3f rot_vec_var;
@@ -461,15 +526,12 @@ void NavEKF3_core::UpdateFilter(bool predict)
     }
 
     // start the timer used for load measurement
-#if EK2_DISABLE_INTERRUPTS
+#if EK3_DISABLE_INTERRUPTS
     irqstate_t istate = irqsave();
 #endif
     hal.util->perf_begin(_perf_UpdateFilter);
 
     // TODO - in-flight restart method
-
-    //get starting time for update step
-    imuSampleTime_ms = frontend->imuSampleTime_us / 1000;
 
     // Check arm status and perform required checks and mode changes
     controlFilterModes();
@@ -497,6 +559,9 @@ void NavEKF3_core::UpdateFilter(bool predict)
         // Update states using optical flow data
         SelectFlowFusion();
 
+        // Update states using body frame odometry data
+        SelectBodyOdomFusion();
+
         // Update states using airspeed data
         SelectTasFusion();
 
@@ -512,7 +577,7 @@ void NavEKF3_core::UpdateFilter(bool predict)
 
     // stop the timer used for load measurement
     hal.util->perf_end(_perf_UpdateFilter);
-#if EK2_DISABLE_INTERRUPTS
+#if EK3_DISABLE_INTERRUPTS
     irqrestore(istate);
 #endif
 }
@@ -588,6 +653,11 @@ void NavEKF3_core::UpdateStrapdownEquationsNED()
 
     // limit states to protect against divergence
     ConstrainStates();
+
+    // If main filter velocity states are valid, update the range beacon receiver position states
+    if (filterStatus.flags.horiz_vel) {
+        receiverPos += (stateStruct.velocity + lastVelocity) * (imuDataDelayed.delVelDT*0.5f);
+    }
 }
 
 /*
@@ -610,7 +680,7 @@ void NavEKF3_core::calcOutputStates()
     correctDeltaAngle(delAngNewCorrected, imuDataNew.delAngDT);
     correctDeltaVelocity(delVelNewCorrected, imuDataNew.delVelDT);
 
-    // apply corections to track EKF solution
+    // apply corrections to track EKF solution
     Vector3f delAng = delAngNewCorrected + delAngCorrection;
 
     // convert the rotation vector to its equivalent quaternion
@@ -689,10 +759,10 @@ void NavEKF3_core::calcOutputStates()
         // calculate a gain that provides tight tracking of the estimator states and
         // adjust for changes in time delay to maintain consistent damping ratio of ~0.7
         float timeDelay = 1e-3f * (float)(imuDataNew.time_ms - imuDataDelayed.time_ms);
-        timeDelay = fmaxf(timeDelay, dtIMUavg);
+        timeDelay = MAX(timeDelay, dtIMUavg);
         float errorGain = 0.5f / timeDelay;
 
-        // calculate a corrrection to the delta angle
+        // calculate a correction to the delta angle
         // that will cause the INS to track the EKF quaternions
         delAngCorrection = deltaAngErr * errorGain * dtIMUavg;
 
@@ -744,7 +814,7 @@ void NavEKF3_core::calcOutputStates()
 /*
  * Calculate the predicted state covariance matrix using algebraic equations generated with Matlab symbolic toolbox.
  * The script file used to generate these and other equations in this filter can be found here:
- * https://github.com/priseborough/InertialNav/blob/master/derivations/RotationVectorAttitudeParameterisation/GenerateNavFilterEquations.m
+ * https://github.com/PX4/ecl/blob/master/matlab/scripts/Inertial%20Nav%20EKF/GenerateNavFilterEquations.m
 */
 void NavEKF3_core::CovariancePrediction()
 {
@@ -777,16 +847,16 @@ void NavEKF3_core::CovariancePrediction()
     float dvy_b;        // Y axis delta velocity measurement bias (rad)
     float dvz_b;        // Z axis delta velocity measurement bias (rad)
 
-    // calculate covariance prediction process noise
+    // Calculate the time step used by the covariance prediction as an average of the gyro and accel integration period
+    // Constrain to prevent bad timing jitter causing numerical conditioning problems with the covariance prediction
+    dt = constrain_float(0.5f*(imuDataDelayed.delAngDT+imuDataDelayed.delVelDT),0.5f * dtEkfAvg, 2.0f * dtEkfAvg);
+
     // use filtered height rate to increase wind process noise when climbing or descending
-    // this allows for wind gradient effects.
-    // filter height rate using a 10 second time constant filter
-    dt = imuDataDelayed.delAngDT;
+    // this allows for wind gradient effects.Filter height rate using a 10 second time constant filter
     float alpha = 0.1f * dt;
     hgtRate = hgtRate * (1.0f - alpha) - stateStruct.velocity.z * alpha;
 
-    // use filtered height rate to increase wind process noise when climbing or descending
-    // this allows for wind gradient effects.
+    // calculate covariance prediction process noise
     windVelSigma  = dt * constrain_float(frontend->_windVelProcessNoise, 0.0f, 1.0f) * (1.0f + constrain_float(frontend->_wndVarHgtRateScale, 0.0f, 1.0f) * fabsf(hgtRate));
     dAngBiasSigma = sq(dt) * constrain_float(frontend->_gyroBiasProcessNoise, 0.0f, 1.0f);
     dVelBiasSigma = sq(dt) * constrain_float(frontend->_accelBiasProcessNoise, 0.0f, 1.0f);
@@ -1360,7 +1430,7 @@ void NavEKF3_core::ConstrainVariances()
 // constrain states to prevent ill-conditioning
 void NavEKF3_core::ConstrainStates()
 {
-    // quaternionsare limited between +-1
+    // quaternions are limited between +-1
     for (uint8_t i=0; i<=3; i++) statesArray[i] = constrain_float(statesArray[i],-1.0f,1.0f);
     // velocity limit 500 m/sec (could set this based on some multiple of max airspeed * EAS2TAS)
     for (uint8_t i=4; i<=6; i++) statesArray[i] = constrain_float(statesArray[i],-5.0e2f,5.0e2f);
@@ -1434,7 +1504,7 @@ Quaternion NavEKF3_core::calcQuatAndFieldStates(float roll, float pitch)
         lastYawReset_ms = imuSampleTime_ms;
         // calculate an initial quaternion using the new yaw value
         initQuat.from_euler(roll, pitch, yaw);
-        // zero the attitude covariances becasue the corelations will now be invalid
+        // zero the attitude covariances because the correlations will now be invalid
         zeroAttCovOnly();
 
         // calculate initial Tbn matrix and rotate Mag measurements into NED

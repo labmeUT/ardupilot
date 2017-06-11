@@ -17,6 +17,9 @@ from pymavlink import mavutil, mavwp
 
 from common import *
 from pysim import util
+from pysim import vehicleinfo
+
+vinfo = vehicleinfo.VehicleInfo()
 
 # get location of scripts
 testdir = os.path.dirname(os.path.realpath(__file__))
@@ -28,6 +31,10 @@ homeloc = None
 num_wp = 0
 speedup_default = 10
 
+
+def wait_ready_to_arm(mavproxy):
+    # wait for EKF and GPS checks to pass
+    mavproxy.expect('IMU0 is using GPS')
 
 def hover(mavproxy, mav, hover_throttle=1500):
     mavproxy.send('rc 3 %u\n' % hover_throttle)
@@ -953,13 +960,16 @@ def setup_rc(mavproxy):
     mavproxy.send('rc 3 1000\n')
 
 
-def fly_ArduCopter(binary, viewerip=None, use_map=False, valgrind=False, gdb=False, frame='+', params_file=None):
+def fly_ArduCopter(binary, viewerip=None, use_map=False, valgrind=False, gdb=False, frame=None, params_file=None):
     """Fly ArduCopter in SITL.
 
     you can pass viewerip as an IP address to optionally send fg and
     mavproxy packets too for local viewing of the flight in real time
     """
     global homeloc
+
+    if frame is None:
+        frame = '+'
 
     home = "%f,%f,%u,%u" % (HOME.lat, HOME.lng, HOME.alt, HOME.heading)
     sitl = util.start_SITL(binary, wipe=True, model=frame, home=home, speedup=speedup_default)
@@ -968,8 +978,11 @@ def fly_ArduCopter(binary, viewerip=None, use_map=False, valgrind=False, gdb=Fal
 
     # setup test parameters
     if params_file is None:
-        params_file = "{testdir}/default_params/copter.parm"
-    mavproxy.send("param load %s\n" % params_file.format(testdir=testdir))
+        params = vinfo.options["ArduCopter"]["frames"][frame]["default_params_filename"]
+        if not isinstance(params, list):
+            params = [params]
+        for x in params:
+            mavproxy.send("param load %s\n" % os.path.join(testdir, x))
     mavproxy.expect('Loaded [0-9]+ parameters')
     mavproxy.send("param set LOG_REPLAY 1\n")
     mavproxy.send("param set LOG_DISARMED 1\n")
@@ -1027,8 +1040,7 @@ def fly_ArduCopter(binary, viewerip=None, use_map=False, valgrind=False, gdb=Fal
         setup_rc(mavproxy)
         homeloc = mav.location()
 
-        # wait for EKF and GPS checks to pass
-        wait_seconds(mav, 30)
+        wait_ready_to_arm(mavproxy)
 
         # Arm
         print("# Arm motors")
@@ -1378,8 +1390,7 @@ def fly_CopterAVC(binary, viewerip=None, use_map=False, valgrind=False, gdb=Fals
         print("Lowering rotor speed")
         mavproxy.send('rc 8 1000\n')
 
-        # wait for EKF and GPS checks to pass
-        wait_seconds(mav, 30)
+        wait_ready_to_arm(mavproxy)
 
         # Arm
         print("# Arm motors")

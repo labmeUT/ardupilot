@@ -6,8 +6,7 @@
 #include "AP_NavEKF3_core.h"
 #include <AP_AHRS/AP_AHRS.h>
 #include <AP_Vehicle/AP_Vehicle.h>
-
-#include <stdio.h>
+#include <GCS_MAVLink/GCS.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -22,6 +21,12 @@ extern const AP_HAL::HAL& hal;
 // select fusion of optical flow measurements
 void NavEKF3_core::SelectFlowFusion()
 {
+    // start performance timer
+    hal.util->perf_begin(_perf_FuseOptFlow);
+
+    // Check for data at the fusion time horizon
+    flowDataToFuse = storedOF.recall(ofDataDelayed, imuDataDelayed.time_ms);
+
     // Check if the magnetometer has been fused on that time step and the filter is running at faster than 200 Hz
     // If so, don't fuse measurements on this time step to reduce frame over-runs
     // Only allow one time slip to prevent high rate magnetometer data preventing fusion of other measurements
@@ -32,13 +37,11 @@ void NavEKF3_core::SelectFlowFusion()
         optFlowFusionDelayed = false;
     }
 
-    // start performance timer
-    hal.util->perf_begin(_perf_FuseOptFlow);
     // Perform Data Checks
     // Check if the optical flow data is still valid
     flowDataValid = ((imuSampleTime_ms - flowValidMeaTime_ms) < 1000);
-    // check is the terrain offset estimate is still valid
-    gndOffsetValid = ((imuSampleTime_ms - gndHgtValidTime_ms) < 5000);
+    // check is the terrain offset estimate is still valid - if we are using range finder as the main height reference, the ground is assumed to be at 0
+    gndOffsetValid = ((imuSampleTime_ms - gndHgtValidTime_ms) < 5000) || (activeHgtSource == HGT_SOURCE_RNG);
     // Perform tilt check
     bool tiltOK = (prevTnb.c.z > frontend->DCM33FlowMin);
     // Constrain measurements to zero if takeoff is not detected and the height above ground
@@ -258,7 +261,7 @@ void NavEKF3_core::EstimateTerrainOffset()
 /*
  * Fuse angular motion compensated optical flow rates using explicit algebraic equations generated with Matlab symbolic toolbox.
  * The script file used to generate these and other equations in this filter can be found here:
- * https://github.com/priseborough/InertialNav/blob/master/derivations/RotationVectorAttitudeParameterisation/GenerateNavFilterEquations.m
+ * https://github.com/PX4/ecl/blob/master/matlab/scripts/Inertial%20Nav%20EKF/GenerateNavFilterEquations.m
  * Requires a valid terrain height estimate.
 */
 void NavEKF3_core::FuseOptFlow()
@@ -645,7 +648,11 @@ void NavEKF3_core::FuseOptFlow()
         if ((flowTestRatio[obsIndex]) < 1.0f && (ofDataDelayed.flowRadXY.x < frontend->_maxFlowRate) && (ofDataDelayed.flowRadXY.y < frontend->_maxFlowRate)) {
             // record the last time observations were accepted for fusion
             prevFlowFuseTime_ms = imuSampleTime_ms;
-
+            // notify first time only
+            if (!flowFusionActive) {
+                flowFusionActive = true;
+                GCS_MAVLINK::send_statustext_all(MAV_SEVERITY_INFO, "EKF3 IMU%u fusing optical flow",(unsigned)imu_index);
+            }
             // correct the covariance P = (I - K*H)*P
             // take advantage of the empty columns in KH to reduce the
             // number of operations

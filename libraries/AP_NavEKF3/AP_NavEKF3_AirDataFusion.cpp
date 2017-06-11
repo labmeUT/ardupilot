@@ -1,5 +1,3 @@
-/// -*- tab-width: 4; Mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*-
-
 #include <AP_HAL/AP_HAL.h>
 
 #if HAL_CPU_CLASS >= HAL_CPU_CLASS_150
@@ -8,8 +6,6 @@
 #include "AP_NavEKF3_core.h"
 #include <AP_AHRS/AP_AHRS.h>
 #include <AP_Vehicle/AP_Vehicle.h>
-
-#include <stdio.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -24,7 +20,7 @@ extern const AP_HAL::HAL& hal;
 /*
  * Fuse true airspeed measurements using explicit algebraic equations generated with Matlab symbolic toolbox.
  * The script file used to generate these and other equations in this filter can be found here:
- * https://github.com/priseborough/InertialNav/blob/master/derivations/RotationVectorAttitudeParameterisation/GenerateNavFilterEquations.m
+ * https://github.com/PX4/ecl/blob/master/matlab/scripts/Inertial%20Nav%20EKF/GenerateNavFilterEquations.m
 */
 void NavEKF3_core::FuseAirspeed()
 {
@@ -242,7 +238,7 @@ void NavEKF3_core::SelectBetaFusion()
 /*
  * Fuse sythetic sideslip measurement of zero using explicit algebraic equations generated with Matlab symbolic toolbox.
  * The script file used to generate these and other equations in this filter can be found here:
- * https://github.com/priseborough/InertialNav/blob/master/derivations/RotationVectorAttitudeParameterisation/GenerateNavFilterEquations.m
+ * https://github.com/PX4/ecl/blob/master/matlab/scripts/Inertial%20Nav%20EKF/GenerateNavFilterEquations.m
 */
 void NavEKF3_core::FuseSideslip()
 {
