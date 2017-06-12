@@ -57,7 +57,7 @@ bool MCP9600::init()
     // Max conversion time is 9.04 ms
 
     _dev->register_periodic_callback(50 * USEC_PER_MSEC,
-                                     FUNCTOR_BIND_MEMBER(&MCP9600::temperature, void));
+                                     FUNCTOR_BIND_MEMBER(&MCP9600::_temperature, void));
 
     return true;
 }
