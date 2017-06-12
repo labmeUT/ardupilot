@@ -18,6 +18,7 @@ def build(bld):
             'AP_RSSI',
             'AP_Relay',
             'AP_ServoRelayEvents',
+            'AP_TemperatureSensor',
             'PID',
             'AP_Stats',
             'AP_Beacon',
