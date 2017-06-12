@@ -55,10 +55,10 @@ bool MCP9600::init()
 
     // Request 20Hz update
     // Max conversion time is 9.04 ms
-
-    _dev->register_periodic_callback(50 * USEC_PER_MSEC,
+/*
+    _dev->register_periodic_callback( (50 * USEC_PER_MSEC),
                                      FUNCTOR_BIND_MEMBER(&MCP9600::_temperature, void));
-
+*/
     return true;
 }
 
@@ -126,8 +126,8 @@ float MCP9600::temperature(void)
     _temperature = adc * 0.0625;
     return (val[0] << 8) |  val[1];
 }*/
-
-/*void MCP9600::_timer(void)
+/*
+void MCP9600::_timer(void)
 {
     uint32_t adc = _read_adc();
     _healthy = adc != 0;
@@ -143,6 +143,7 @@ float MCP9600::temperature(void)
     _convert();
 }
 */
+
 /*void MCP9600::_calculate(uint32_t adc)
 {
     //float adc16 = adc/256;

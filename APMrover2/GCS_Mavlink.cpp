@@ -279,6 +279,23 @@ void Rover::send_current_waypoint(mavlink_channel_t chan)
     mavlink_msg_mission_current_send(chan, mission.get_current_nav_index());
 }
 
+// Work around to get temperature sensor data out
+void NOINLINE Rover::send_temperature(mavlink_channel_t chan)
+{
+/*
+    if (!celsius.healthy()) {
+        return;
+    }
+*/
+    mavlink_msg_scaled_pressure3_send(
+        chan,
+        AP_HAL::millis(),
+        0,
+        0,
+        celsius.temperature() * 100);
+}
+
+
 uint32_t GCS_MAVLINK_Rover::telem_delay() const
 {
     return static_cast<uint32_t>(rover.g.telem_delay);
@@ -373,6 +390,11 @@ bool GCS_MAVLINK_Rover::try_send_message(enum ap_message id)
     case MSG_RAW_IMU1:
         CHECK_PAYLOAD_SIZE(RAW_IMU);
         send_raw_imu(rover.ins, rover.compass);
+        break;
+
+    case MSG_RAW_IMU2:
+        CHECK_PAYLOAD_SIZE(SCALED_PRESSURE);
+        rover.send_temperature(chan);
         break;
 
     case MSG_RAW_IMU3:
