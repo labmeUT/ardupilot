@@ -448,7 +448,6 @@ bool GCS_MAVLINK_Rover::try_send_message(enum ap_message id)
 #endif  // MOUNT == ENABLED
         break;
 
-    case MSG_RAW_IMU2:
     case MSG_LIMITS_STATUS:
     case MSG_FENCE_STATUS:
     case MSG_WIND:

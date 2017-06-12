@@ -50,7 +50,6 @@ Rover::Rover(void) :
 #endif
     home(ahrs.get_home()),
     do_auto_rotation(false),
-    G_Dt(0.02f),
-    celsius()
+    G_Dt(0.02f)
 {
 }
