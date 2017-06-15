@@ -229,6 +229,7 @@ void Rover::gcs_failsafe_check(void)
     if (g.fs_gcs_enabled) {
         failsafe_trigger(FAILSAFE_EVENT_GCS, last_heartbeat_ms != 0 && (millis() - last_heartbeat_ms) > 2000);
     }
+    
 }
 
 /*
@@ -317,6 +318,9 @@ void Rover::one_second_loop(void)
     // send a heartbeat
     gcs_send_message(MSG_HEARTBEAT);
 
+    //debugprint
+    hal.console->printf("\n TEMP = %f \n", celsius.temperature());
+    gcs_send_message(MSG_RAW_IMU2);
     // allow orientation change at runtime to aid config
     ahrs.set_orientation();
 

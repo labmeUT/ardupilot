@@ -8,7 +8,8 @@
 
 extern const AP_HAL::HAL &hal;
 
-static const uint8_t MCP9600_CMD_READ_ADC    = 0x00;
+static const uint8_t MCP9600_CMD_WRITEMSG[2]  = {0xC0, 0x02};
+static const uint8_t MCP9600_CMD_READ_ADC     = 0xC1;
 
 MCP9600::MCP9600() :
     _dev(nullptr),
@@ -18,6 +19,7 @@ MCP9600::MCP9600() :
 
 bool MCP9600::init()
 {
+    //uint8_t ret;
     _dev = std::move(hal.i2c_mgr->get_device(1, MCP9600_ADDR));
     if (!_dev) {
         printf("MCP9600 device is null!");
@@ -28,7 +30,13 @@ bool MCP9600::init()
         AP_HAL::panic("PANIC: MCP9600: failed to take serial semaphore for init");
     }
 
-    _dev->set_retries(10);
+    _dev->set_retries(20);
+    
+    _dev->set_speed(AP_HAL::Device::SPEED_LOW);
+    //_dev->set_split_transfers(true);
+    _dev->transfer(MCP9600_CMD_WRITEMSG, 2, nullptr, 0 );
+    
+
 /*
     if (!_reset()) {
         printf("MCP9600 reset failed");
@@ -49,15 +57,15 @@ bool MCP9600::init()
 */
     // lower retries for run
 
-    _dev->set_retries(3);
+    //_dev->set_retries(5);
 
     _dev->get_semaphore()->give();
 
     // Request 20Hz update
     // Max conversion time is 9.04 ms
 /*
-    _dev->register_periodic_callback( (50 * USEC_PER_MSEC),
-                                     FUNCTOR_BIND_MEMBER(&MCP9600::_temperature, void));
+    _dev->register_periodic_callback( (100 * USEC_PER_MSEC),
+                                     FUNCTOR_BIND_MEMBER(&MCP9600::_read, void));
 */
     return true;
 }
@@ -99,20 +107,22 @@ uint16_t TSYS01::_read_prom_word(uint8_t word)
     return (val[0] << 8) | val[1];
 }*/
 
-/*bool TSYS01::_convert()
+void MCP9600::_read()
 {
-    return _dev->transfer(&TSYS01_CMD_CONVERT, 1, nullptr, 0);
-}*/
+    uint8_t val[2] = {0};
+    int32_t adc;
+    _dev->transfer(MCP9600_CMD_WRITEMSG, 2, nullptr, 0 );
+    if (_dev->transfer(&MCP9600_CMD_READ_ADC, 1, val, 2)) {
+        adc = (val[0] << 8) |  val[1];
+        _temperature = adc * 0.0625;
+    }else{
+        _temperature = -300;
+    }
+}
 
 float MCP9600::temperature(void)
 {
-    uint8_t val[2];
-    uint32_t adc;
-    if (!_dev->transfer(&MCP9600_CMD_READ_ADC, 1, val, 2)) {
-        return 0;
-    }
-    adc = val[0] << 8 |  val[1];
-    _temperature = adc * 0.0625;
+    _read();
     return (_temperature);
 }
 

@@ -282,17 +282,17 @@ void Rover::send_current_waypoint(mavlink_channel_t chan)
 // Work around to get temperature sensor data out
 void NOINLINE Rover::send_temperature(mavlink_channel_t chan)
 {
-/*
-    if (!celsius.healthy()) {
+    float temp = celsius.temperature();
+    if (temp < -273) {
         return;
     }
-*/
-    mavlink_msg_scaled_pressure3_send(
+
+    mavlink_msg_scaled_pressure_send(
         chan,
         AP_HAL::millis(),
         0,
         0,
-        celsius.temperature() * 100);
+        temp * 100);
 }
 
 
@@ -394,6 +394,7 @@ bool GCS_MAVLINK_Rover::try_send_message(enum ap_message id)
 
     case MSG_RAW_IMU2:
         CHECK_PAYLOAD_SIZE(SCALED_PRESSURE);
+        //send_scaled_pressure(rover.barometer);
         rover.send_temperature(chan);
         break;
 

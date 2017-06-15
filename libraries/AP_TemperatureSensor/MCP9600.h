@@ -18,10 +18,11 @@ public:
     float temperature(void);  // { return _temperature; } // temperature in degrees C
     //bool healthy(void) { return _healthy; } // do we have a valid temperature reading?
 
-    AP_HAL::OwnPtr<AP_HAL::Device> _dev;
+    AP_HAL::OwnPtr<AP_HAL::I2CDevice> _dev;
 
 private:
     float _temperature; // degrees C
+    void _read(void);
     //bool _healthy; // we have a valid temperature reading to report
     //uint16_t _k[5]; // internal calibration for temperature calculation
     //bool _reset(void); // reset device
