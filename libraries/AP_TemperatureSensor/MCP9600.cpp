@@ -32,7 +32,7 @@ bool MCP9600::init()
 
     _dev->set_retries(20);
     
-    _dev->set_speed(AP_HAL::Device::SPEED_LOW);
+    //_dev->set_speed(AP_HAL::Device::SPEED_LOW);
     //_dev->set_split_transfers(true);
     _dev->transfer(MCP9600_CMD_WRITEMSG, 2, nullptr, 0 );
     
@@ -44,7 +44,7 @@ bool MCP9600::init()
         return false;
     }
 */
-    hal.scheduler->delay(4);
+    hal.scheduler->delay(20);
 /*
     if (!_read_prom()) {
         printf("MCP9600 prom read failed");
@@ -63,10 +63,10 @@ bool MCP9600::init()
 
     // Request 20Hz update
     // Max conversion time is 9.04 ms
-/*
+
     _dev->register_periodic_callback( (100 * USEC_PER_MSEC),
                                      FUNCTOR_BIND_MEMBER(&MCP9600::_read, void));
-*/
+
     return true;
 }
 
@@ -111,19 +111,32 @@ void MCP9600::_read()
 {
     uint8_t val[2] = {0};
     int32_t adc;
-    _dev->transfer(MCP9600_CMD_WRITEMSG, 2, nullptr, 0 );
-    if (_dev->transfer(&MCP9600_CMD_READ_ADC, 1, val, 2)) {
-        adc = (val[0] << 8) |  val[1];
-        _temperature = adc * 0.0625;
+    static float stf_temp = 20.00;
+  
+//   if (_dev->read(&val, 2)) {
+    if(_dev->transfer(&MCP9600_CMD_READ_ADC, 1, val, 2 )){
+       if( (val[0] == 0x01 && val[1] == 0x01)||
+            (val[0] == 0x01 && val[1] == 0x00)||
+            (val[0] == 0x00 && val[1] == 0x00)){
+            _temperature = stf_temp;
+       }else{
+          
+          adc = (val[0] << 8) |  val[1];
+          _temperature = adc * 0.0625;
+            stf_temp = _temperature;
+        }
     }else{
         _temperature = -300;
     }
+//    _dev->transfer(MCP9600_CMD_WRITEMSG, 2, nullptr, 0 );
+//    _dev->read_registers(MCP9600_CMD_READ_ADC, val, sizeof(val));
 }
 
 float MCP9600::temperature(void)
 {
-    _read();
+    //_read();
     return (_temperature);
+
 }
 
 /*uint32_t MCP9600::_read_adc()
