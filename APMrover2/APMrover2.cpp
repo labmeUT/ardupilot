@@ -319,7 +319,7 @@ void Rover::one_second_loop(void)
     gcs_send_message(MSG_HEARTBEAT);
 
     //debugprint
-    hal.console->printf("\n TEMP = %f \n", celsius.temperature());
+    //hal.console->printf("\n TEMP = %f \n", celsius.temperature());
     gcs_send_message(MSG_RAW_IMU2);
     // allow orientation change at runtime to aid config
     ahrs.set_orientation();
